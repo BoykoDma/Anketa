@@ -12,10 +12,10 @@
 {
     @if (!isRegistration)
     {
-        <div class="dialog-overlay" @onclick="CloseDialog">
+        <div class="dialog-overlay">
             <div class="dialog-content" @onclick:stopPropagation="true">
                 <div class="dialog-header">
-                    <h3>Вход в систему</h3>
+                    <h3>Вход</h3>
                     <button class="dialog-close" @onclick="CloseDialog">×</button>
                 </div>
 
@@ -64,7 +64,7 @@
     }
     @if (isRegistration)
     {
-        <div class="dialog-overlay" @onclick="CloseDialog">
+        <div class="dialog-overlay">
             <div class="dialog-content" @onclick:stopPropagation="true">
                 <div class="dialog-header">
                     <h3>Регистрация</h3>
@@ -243,183 +243,251 @@
 
 
 <style>
-    .login-btn-fixed {
-        font-size: 0.8rem;
-        color: white;
-        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
-        border: none;
-        border-radius: 6px;
-        height: 2rem;
-        padding: 0 1rem;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        font-family: inherit;
-        position: fixed;
-        top: 1rem;
-        right: 1rem;
-        z-index: 1000;
-        box-shadow: 0 0 15px rgba(237, 137, 54, 0.7), 0 2px 8px rgba(237, 137, 54, 0.4);
-        font-weight: 500;
-        letter-spacing: 0.3px;
-    }
-
-        .login-btn-fixed:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 20px rgba(237, 137, 54, 0.9), 0 4px 12px rgba(237, 137, 54, 0.6);
-        }
-
+    /* Overlay - стиль вашего сайта */
     .dialog-overlay {
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(8px);
         display: flex;
         justify-content: center;
         align-items: center;
-        z-index: 1001;
+        z-index: 9999;
         animation: fadeIn 0.3s ease;
+        overflow-y: auto;
+        padding: 20px;
+        box-sizing: border-box;
     }
 
+    /* Диалог - в стиле вашего navbar */
     .dialog-content {
-        background: white;
-        border-radius: 12px;
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 16px;
         padding: 0;
         width: 90%;
-        max-width: 400px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        max-width: 420px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
         animation: slideUp 0.3s ease;
         overflow: hidden;
+        max-height: 90vh;
+        margin: auto;
+        position: relative;
+        z-index: 10000;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
+    /* Шапка диалога */
     .dialog-header {
-        background: linear-gradient(135deg, #1a1a1a 0%, #2d3748 100%);
+        background: linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%);
         color: white;
         padding: 1.5rem;
         position: relative;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
         .dialog-header h3 {
             margin: 0;
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             font-weight: 600;
+            background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
     .dialog-close {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 1.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        color: #cbd5e1;
+        font-size: 1.2rem;
         cursor: pointer;
         padding: 0;
-        width: 30px;
-        height: 30px;
+        width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 50%;
-        transition: background-color 0.3s ease;
+        transition: all 0.3s ease;
     }
 
         .dialog-close:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+            transform: rotate(90deg);
         }
 
+    /* Форма */
     .dialog-content form {
-        padding: 1.5rem;
+        padding: 2rem;
+        overflow-y: auto;
+        max-height: calc(90vh - 80px - 4rem);
     }
 
     .form-group {
-        margin-bottom: 1.2rem;
+        margin-bottom: 1.5rem;
     }
 
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 500;
-            color: #2d3748;
+            color: #cbd5e1;
             font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
+    /* Темные поля ввода для ВСЕХ форм (входа и регистрации) */
     .form-control {
         width: 100%;
-        padding: 0.75rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 6px;
-        font-size: 0.9rem;
+        padding: 0.875rem 1rem;
+        background: rgba(15, 23, 42, 0.8) !important;
+        border: 2px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
+        font-size: 1rem;
         transition: all 0.3s ease;
-        background: white;
     }
 
         .form-control:focus {
             outline: none;
-            border-color: #ed8936;
-            box-shadow: 0 0 0 3px rgba(237, 137, 54, 0.1);
+            border-color: #60a5fa !important;
+            background: rgba(15, 23, 42, 0.9) !important;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
         }
 
+        .form-control::placeholder {
+            color: #64748b !important;
+        }
+
+    /* Переопределение стилей Bootstrap если они есть */
+    input.form-control,
+    input[type="text"].form-control,
+    input[type="password"].form-control {
+        background: rgba(15, 23, 42, 0.8) !important;
+        border: 2px solid rgba(255, 255, 255, 0.1) !important;
+        color: #ffffff !important;
+    }
+
+    /* Кнопки */
     .dialog-buttons {
         display: flex;
         justify-content: center;
-        margin: 1.5rem 0;
+        margin: 2rem 0 1.5rem;
     }
 
     .btn {
-        padding: 0.75rem 2rem;
+        padding: 0.875rem 2.5rem;
         border: none;
-        border-radius: 6px;
-        font-size: 0.9rem;
-        font-weight: 500;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
-        min-width: 150px;
+        min-width: 160px;
         display: flex;
         align-items: center;
         justify-content: center;
+        letter-spacing: 0.5px;
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 100%);
         color: white;
-        box-shadow: 0 2px 8px rgba(237, 137, 54, 0.4);
+        box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);
     }
 
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(237, 137, 54, 0.6);
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(96, 165, 250, 0.5);
         }
 
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+    /* Ссылка регистрации/входа */
     .register-section {
         text-align: center;
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid #e2e8f0;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .register-link {
-        color: #ed8936;
+        color: #60a5fa;
         text-decoration: none;
         transition: all 0.3s ease;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         background: none;
         border: none;
         cursor: pointer;
         padding: 0.5rem 1rem;
-        border-radius: 4px;
+        border-radius: 6px;
         display: inline-block;
+        font-weight: 500;
     }
 
         .register-link:hover {
-            color: #dd6b20;
-            text-decoration: underline;
-            background-color: rgba(237, 137, 54, 0.1);
+            color: #38bdf8;
+            text-decoration: none;
+            background-color: rgba(96, 165, 250, 0.1);
         }
 
+    /* Стили для алертов и валидации */
+    .alert {
+        padding: 0.875rem 1rem;
+        margin: 1rem;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        animation: fadeIn 0.3s ease;
+        border: 1px solid;
+    }
+
+    .alert-danger {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+    }
+
+    .validation-summary-errors {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 10px;
+        padding: 0.875rem 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+        color: #ef4444;
+    }
+
+        .validation-summary-errors ul {
+            margin: 0;
+            padding-left: 1rem;
+        }
+
+        .validation-summary-errors li {
+            margin-bottom: 0.25rem;
+        }
+
+    .validation-message {
+        color: #ef4444;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    /* Анимации */
     @@keyframes fadeIn {
         from {
             opacity: 0;
@@ -433,30 +501,130 @@
     @@keyframes slideUp {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(20px) scale(0.95);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
     }
 
+    /* Адаптивность */
     @@media (max-width: 768px) {
-        .login-btn-fixed {
-            right: auto;
-            left: 1rem;
-            top: 1rem;
+        .dialog-overlay {
+            padding: 10px;
+            align-items: flex-start;
         }
 
         .dialog-content {
             width: 95%;
-            margin: 1rem;
+            margin: 0 auto;
+            max-height: 85vh;
         }
+
+            .dialog-content form {
+                padding: 1.5rem;
+                max-height: calc(85vh - 80px - 3rem);
+            }
 
         .btn {
             width: 100%;
             max-width: 200px;
         }
+
+        .dialog-header h3 {
+            font-size: 1.2rem;
+        }
+    }
+
+    @@media (max-height: 600px) {
+        .dialog-overlay {
+            align-items: flex-start;
+            padding-top: 20px;
+        }
+
+        .dialog-content {
+            max-height: 80vh;
+        }
+
+            .dialog-content form {
+                max-height: calc(80vh - 80px - 3rem);
+            }
+    }
+</style>
+
+<style>
+    /* Тёмные поля ввода с переопределением автозаполнения */
+    .form-control {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        background: rgba(15, 23, 42, 0.8) !important;
+        border: 2px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+        /* Стили для автозаполнения браузера */
+        .form-control:-webkit-autofill,
+        .form-control:-webkit-autofill:hover,
+        .form-control:-webkit-autofill:focus,
+        .form-control:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px rgba(15, 23, 42, 0.9) inset !important;
+            -webkit-text-fill-color: #ffffff !important;
+            background-color: rgba(15, 23, 42, 0.9) !important;
+            border: 2px solid rgba(96, 165, 250, 0.5) !important;
+            transition: background-color 5000s ease-in-out 0s !important;
+            caret-color: #ffffff !important;
+        }
+
+        /* Для Firefox и других браузеров */
+        .form-control:autofill,
+        .form-control:autofill:hover,
+        .form-control:autofill:focus,
+        .form-control:autofill:active {
+            background-color: rgba(15, 23, 42, 0.9) !important;
+            color: #ffffff !important;
+            border: 2px solid rgba(96, 165, 250, 0.5) !important;
+            box-shadow: 0 0 0 1000px rgba(15, 23, 42, 0.9) inset !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+
+    /* Для полей с паролем */
+    input[type="password"].form-control:-webkit-autofill,
+    input[type="password"].form-control:-webkit-autofill:hover,
+    input[type="password"].form-control:-webkit-autofill:focus,
+    input[type="password"].form-control:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 1000px rgba(15, 23, 42, 0.9) inset !important;
+        -webkit-text-fill-color: #ffffff !important;
+        background-color: rgba(15, 23, 42, 0.9) !important;
+        border: 2px solid rgba(96, 165, 250, 0.5) !important;
+    }
+
+    /* Фокус на автозаполненных полях */
+    .form-control:focus:-webkit-autofill {
+        border-color: #60a5fa !important;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1), 0 0 0 1000px rgba(15, 23, 42, 0.9) inset !important;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #60a5fa !important;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+    }
+
+    .form-control::placeholder {
+        color: #64748b !important;
+    }
+
+    /* Переопределение стилей Bootstrap если они есть */
+    input.form-control,
+    input[type="text"].form-control,
+    input[type="password"].form-control {
+        background: rgba(15, 23, 42, 0.8) !important;
+        border: 2px solid rgba(255, 255, 255, 0.1) !important;
+        color: #ffffff !important;
     }
 </style>

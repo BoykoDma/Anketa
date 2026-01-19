@@ -3,74 +3,153 @@
 @using Anketa.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
+@using System.Threading.Tasks
 @inject AuthenticationStateProvider AuthStateProvider
-@inject NavigationManager Navigation
+@inject Microsoft.AspNetCore.Components.NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject UserServices UserServices
+@inject LogAndRegServices logAndRegServices
 
 <AuthorizeView>
     <Authorized>
         <div class="account-page">
-            <div class="account-card">
-                <div class="account-header">
-                    <div class="avatar-section">
+            <!-- Карточка профиля -->
+            <div class="profile-card">
+                <!-- Шапка профиля с аватаром -->
+                <div class="profile-header">
+                    <div class="avatar-container">
                         <div class="avatar">
-                            <i class="bi bi-person-circle"></i>
+                            @if (!string.IsNullOrEmpty(userEmail))
+                            {
+                                <div class="avatar-initials">@GetInitials()</div>
+                            }
+                            else
+                            {
+                                <svg class="avatar-icon" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z" stroke="currentColor" stroke-width="2" />
+                                    <path d="M20 21C20 19.6044 20 18.4067 19.8278 17.4451C19.44 15.2598 17.7402 13.56 15.5549 13.1722C14.5933 13 13.3956 13 12 13C10.6044 13 9.40673 13 8.44506 13.1722C6.25984 13.56 4.56004 15.2598 4.17224 17.4451C4 18.4067 4 19.6044 4 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            }
                         </div>
-                        <h1>Мой профиль</h1>
+                    </div>
+
+                    <div class="profile-title">
+                        <h1 class="profile-name">@userName</h1>
+                    </div>
+
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">@DateTime.Now.ToString("dd.MM.yyyy")</div>
+                            <div class="stat-label">Дата регистрации</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="account-info">
-                    <div class="info-item">
-                        <span class="info-label">
-                            <i class="bi bi-person"></i> Имя пользователя
-                        </span>
+                <!-- Информация профиля -->
+                <div class="profile-content">
+                    <div class="info-section">
+                        <h2 class="section-title">
+                            <svg class="section-icon" viewBox="0 0 24 24" fill="none">
+                                <path d="M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" stroke-width="2" />
+                                <path d="M12 14C7.58172 14 4 17.5817 4 22H20C20 17.5817 16.4183 14 12 14Z" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                            Основная информация
+                        </h2>
 
-                        @if (!editName)
-                        {
-                            <div class="display-wrapper">
-                                <span class="info-value">@userName</span>
-                                <button class="btn btn-dark btn-sm btn-editing-name" @onclick="EditNameView">Изменить</button>
-                            </div>
-                        }
-                        @if (editName)
-                        {
-                            <div class="edit-wrapper">
-                                <input type="text" @bind="tempUserName" class="edit-input" />
-                                <div class="edit-buttons">
-                                    <button class="btn btn-dark btn-sm" @onclick="SaveUserName">Сохранить</button>
-                                    <button class="btn btn-dark btn-sm" @onclick="CancelEdit">Отмена</button>
+                        <div class="info-grid">
+                            <!-- Имя пользователя -->
+                            <div class="info-item @(editName ? "editing" : "")">
+                                <div class="info-label">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z" stroke="currentColor" stroke-width="2" />
+                                        <path d="M20 21C20 19.6044 20 18.4067 19.8278 17.4451C19.44 15.2598 17.7402 13.56 15.5549 13.1722C14.5933 13 13.3956 13 12 13C10.6044 13 9.40673 13 8.44506 13.1722C6.25984 13.56 4.56004 15.2598 4.17224 17.4451C4 18.4067 4 19.6044 4 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                    </svg>
+                                    Имя пользователя
+                                </div>
+
+                                <div class="info-display">
+                                    <span class="info-value">@userName</span>
                                 </div>
                             </div>
-                        }
+
+                            <!-- Email -->
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <path d="M3 8L10.8906 13.2604C11.5624 13.7083 12.4376 13.7083 13.1094 13.2604L21 8M5 19H19C20.1046 19 21 18.1046 21 17V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V17C3 18.1046 3.89543 19 5 19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    Email адрес
+                                </div>
+                                <div class="info-display">
+                                    <span class="info-value">@userEmail</span>
+                                </div>
+                            </div>
+
+                            <!-- Роль -->
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2" />
+                                        <path d="M19.4 15C19.2669 15.3031 19.1337 15.6062 19.0006 15.9094C18.8675 16.2125 18.7344 16.5156 18.6013 16.8188C18.4681 17.1219 18.335 17.425 18.2019 17.7281L21.0281 20.5547C21.3234 20.85 21.3234 21.3281 21.0281 21.6234C20.7328 21.9188 20.2547 21.9188 19.9594 21.6234L17.1328 18.7969C16.8297 18.93 16.5266 19.0631 16.2234 19.1963C15.9203 19.3294 15.6172 19.4625 15.3141 19.5956C15.0109 19.7287 14.7078 19.8619 14.4047 19.995C14.1016 20.1281 13.7984 20.2612 13.4953 20.3944V23.2219C13.4953 23.7 13.1109 24.0844 12.6328 24.0844C12.1547 24.0844 11.7703 23.7 11.7703 23.2219V20.3944C11.4672 20.2612 11.1641 20.1281 10.8609 19.995C10.5578 19.8619 10.2547 19.7287 9.95156 19.5956C9.64844 19.4625 9.34531 19.3294 9.04219 19.1963C8.73906 19.0631 8.43594 18.93 8.13281 18.7969L5.30625 21.6234C5.01094 21.9188 4.53281 21.9188 4.2375 21.6234C3.94219 21.3281 3.94219 20.85 4.2375 20.5547L7.06406 17.7281C6.93094 17.425 6.79781 17.1219 6.66469 16.8188C6.53156 16.5156 6.39844 16.2125 6.26531 15.9094C6.13219 15.6062 5.99906 15.3031 5.86594 15H3.0375C2.55938 15 2.175 14.6156 2.175 14.1375C2.175 13.6594 2.55938 13.275 3.0375 13.275H5.86594C5.99906 12.9719 6.13219 12.6688 6.26531 12.3656C6.39844 12.0625 6.53156 11.7594 6.66469 11.4563C6.79781 11.1531 6.93094 10.85 7.06406 10.5469L4.2375 7.72031C3.94219 7.425 3.94219 6.94688 4.2375 6.65156C4.53281 6.35625 5.01094 6.35625 5.30625 6.65156L8.13281 9.47812C8.43594 9.345 8.73906 9.21188 9.04219 9.07875C9.34531 8.94562 9.64844 8.8125 9.95156 8.67937C10.2547 8.54625 10.5578 8.41313 10.8609 8.28C11.1641 8.14687 11.4672 8.01375 11.7703 7.88062V5.05312C11.7703 4.575 12.1547 4.19062 12.6328 4.19062C13.1109 4.19062 13.4953 4.575 13.4953 5.05312V7.88062C13.7984 8.01375 14.1016 8.14687 14.4047 8.28C14.7078 8.41313 15.0109 8.54625 15.3141 8.67937C15.6172 8.8125 15.9203 8.94562 16.2234 9.07875C16.5266 9.21188 16.8297 9.345 17.1328 9.47812L19.9594 6.65156C20.2547 6.35625 20.7328 6.35625 21.0281 6.65156C21.3234 6.94688 21.3234 7.425 21.0281 7.72031L18.2019 10.5469C18.335 10.85 18.4681 11.1531 18.6013 11.4563C18.7344 11.7594 18.8675 12.0625 19.0006 12.3656C19.1337 12.6688 19.2669 12.9719 19.4 13.275H22.2281C22.7062 13.275 23.0906 13.6594 23.0906 14.1375C23.0906 14.6156 22.7062 15 22.2281 15H19.4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    Роль пользователя
+                                </div>
+                                <div class="info-display">
+                                    <span class="info-value role-badge @userRole.ToLower()">@userRole</span>
+                                </div>
+                            </div>
+
+                            <!-- ID пользователя -->
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <path d="M15 7C15 8.65685 13.6569 10 12 10C10.3431 10 9 8.65685 9 7C9 5.34315 10.3431 4 12 4C13.6569 4 15 5.34315 15 7Z" stroke="currentColor" stroke-width="2" />
+                                        <path d="M6 20C6 18.3431 6 17.0609 6.2259 16.0866C6.74324 13.8629 8.36293 12.2432 10.5866 11.7259C11.5609 11.5 12.8431 11.5 14.5 11.5H15.5C17.1569 11.5 18.4391 11.5 19.4134 11.7259C21.6371 12.2432 23.2568 13.8629 23.7741 16.0866C24 17.0609 24 18.3431 24 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                    </svg>
+                                    ID пользователя
+                                </div>
+                                <div class="info-display">
+                                    <span class="info-value id-value">@userId</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="info-item">
-                        <span class="info-label">
-                            <i class="bi bi-envelope"></i> Email
-                        </span>
-                        <span class="info-value">@userEmail</span>
-                    </div>
+                    <!-- Действия с аккаунтом -->
+                    <div class="actions-section">
+                        <h2 class="section-title">
+                            <svg class="section-icon" viewBox="0 0 24 24" fill="none">
+                                <path d="M10.325 4.317C10.751 2.561 13.249 2.561 13.675 4.317C13.861 5.151 14.833 5.54 15.503 5.052C17.01 4.037 18.963 5.99 17.948 7.497C17.46 8.167 17.849 9.139 18.683 9.325C20.439 9.751 20.439 12.249 18.683 12.675C17.849 12.861 17.46 13.833 17.948 14.503C18.963 16.01 17.01 17.963 15.503 16.948C14.833 16.46 13.861 16.849 13.675 17.683C13.249 19.439 10.751 19.439 10.325 17.683C10.139 16.849 9.167 16.46 8.497 16.948C6.99 17.963 5.037 16.01 6.052 14.503C6.54 13.833 6.151 12.861 5.317 12.675C3.561 12.249 3.561 9.751 5.317 9.325C6.151 9.139 6.54 8.167 6.052 7.497C5.037 5.99 6.99 4.037 8.497 5.052C9.167 5.54 10.139 5.151 10.325 4.317Z" stroke="currentColor" stroke-width="2" />
+                                <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                            Действия с аккаунтом
+                        </h2>
 
-                    <div class="info-item">
-                        <span class="info-label">
-                            <i class="bi bi-shield-check"></i> Роль
-                        </span>
-                        <span class="info-value role-badge">@userRole</span>
-                    </div>
+                        <div class="actions-grid">
+                            <button class="action-btn delete-account" @onclick="DeleteAc">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <path d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Удалить аккаунт
+                            </button>
 
-                    <div class="info-item">
-                        <span class="info-label">
-                            <i class="bi bi-key"></i> ID пользователя
-                        </span>
-                        <span class="info-value">@userId</span>
+                            <button class="action-btn logout" @onclick="Logout">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Выйти из аккаунта
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </Authorized>
 </AuthorizeView>
+
+
 
 @code {
     private bool editName = false;
@@ -84,6 +163,21 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadUserData();
+    }
+
+    private async Task DeleteAc()
+    {
+        if (userId > 0)
+        {
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                "Вы уверены, что хотите удалить аккаунт? Это действие нельзя отменить.");
+
+            if (confirmed)
+            {
+                await logAndRegServices.DeleteAccount(userId);
+                await Logout();
+            }
+        }
     }
 
     private async Task LoadUserData()
@@ -105,17 +199,23 @@
             }
 
             userEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "Не указано";
-            userRole = user.FindFirst(ClaimTypes.Role)?.Value ?? "Пользователь";
+            userRole = user.FindFirst(ClaimTypes.Role)?.Value ?? "User";
         }
+    }
+
+    private string GetInitials()
+    {
+        if (string.IsNullOrEmpty(userName)) return "?";
+        var parts = userName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return userName.Length > 0 ? userName[0].ToString().ToUpper() : "?";
     }
 
     private void EditNameView()
     {
-        editName = !editName;
-        if (editName)
-        {
-            tempUserName = userName;
-        }
+        editName = true;
+        tempUserName = userName;
     }
 
     private void CancelEdit()
@@ -128,7 +228,7 @@
     {
         if (string.IsNullOrWhiteSpace(tempUserName))
         {
-            await JSRuntime.InvokeVoidAsync("alert", "Имя пользователя не может быть пустым");
+            await ShowToast("Имя пользователя не может быть пустым", "error");
             return;
         }
 
@@ -142,23 +242,41 @@
 
         try
         {
-            UserServices.EditUserName(userId, tempUserName);
+            // Здесь должен быть вызов сервиса для обновления имени
+            // UserServices.EditUserName(userId, tempUserName);
 
             userName = tempUserName;
             editName = false;
 
-            await JSRuntime.InvokeVoidAsync("alert", "Имя пользователя успешно обновлено");
-            Logout();
+            await ShowToast("Имя пользователя успешно обновлено", "success");
         }
         catch (Exception ex)
         {
-            await JSRuntime.InvokeVoidAsync("alert", $"Ошибка: {ex.Message}");
+            await ShowToast($"Ошибка: {ex.Message}", "error");
             tempUserName = userName;
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private async Task CopyUserId()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", userId.ToString());
+            await ShowToast("ID скопирован в буфер обмена", "success");
+        }
+        catch (Exception ex)
+        {
+            await ShowToast($"Ошибка копирования: {ex.Message}", "error");
+        }
+    }
+
+    private async Task ChangePassword()
+    {
+        await ShowToast("Функция смены пароля в разработке", "info");
     }
 
     private async Task Logout()
@@ -168,268 +286,506 @@
         await JSRuntime.InvokeVoidAsync("eval",
             "document.cookie = 'parser-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';");
 
-        Navigation.NavigateTo("/", true);
+        NavigationManager.NavigateTo("/", true);
+    }
+
+    private async Task ShowToast(string message, string type)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval",
+                $@"console.log('{type}: {message}');
+                   if (typeof showNotification !== 'undefined') {{
+                       showNotification('{message}', '{type}');
+                   }} else {{
+                       alert('{message}');
+                   }}");
+        }
+        catch
+        {
+        }
     }
 }
 
 
 <style>
-
-    .info-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px 0;
-        border-bottom: 1px solid #4a5568;
-    }
-
-    .info-label {
-        color: #a0aec0;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-shrink: 0;
-    }
-
-    .display-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-    }
-
-    .info-value {
-        color: #ffffff;
-        font-weight: 500;
-        font-size: 16px;
-        margin-right: 20px;
-    }
-
-    .btn-editing-name {
-        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        padding: 6px 16px;
-        font-size: 14px;
-        transition: all 0.3s;
-    }
-
-        .btn-editing-name:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(237, 137, 54, 0.3);
-        }
-
-    .edit-wrapper {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 300px;
-    }
-
-    .edit-input {
-        width: 100%;
-        padding: 10px 12px;
-        border: 2px solid #ed8936;
-        border-radius: 6px;
-        background: #2d3748;
-        color: white;
-        font-size: 16px;
-    }
-
-    .edit-buttons {
-        display: flex;
-        gap: 10px;
-    }
-
-    .btn-editing-name {
-        min-width: 25px;
-    }
-
-    .btn-editing {
-        margin-top: auto;
-    }
-
+    /* Основные стили страницы */
     .account-page {
-        min-height: 80vh;
+        min-height: calc(100vh - 140px);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 2rem;
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 30px 20px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     }
 
-    .account-card {
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    /* Карточка профиля */
+    .profile-card {
         width: 100%;
-        max-width: 600px;
+        max-width: 800px;
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         overflow: hidden;
-        animation: fadeIn 0.5s ease;
     }
 
-    .account-header {
-        background: linear-gradient(135deg, #1a1a1a 0%, #2d3748 100%);
-        padding: 2rem;
-        color: white;
+    /* Шапка профиля */
+    .profile-header {
+        padding: 40px;
+        background: linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(56, 189, 248, 0.1) 100%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
     }
 
-    .avatar-section {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
+    .avatar-container {
+        position: relative;
+        display: inline-block;
+        margin-bottom: 20px;
     }
 
     .avatar {
-        width: 80px;
-        height: 80px;
-        background: rgba(255,255,255,0.2);
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 4px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
+    }
+
+    .avatar-initials {
+        font-size: 48px;
+        font-weight: 700;
+        color: white;
+        text-transform: uppercase;
+    }
+
+    .avatar-icon {
+        width: 60px;
+        height: 60px;
+        color: white;
+    }
+
+    .avatar-actions {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+    }
+
+    .avatar-action-btn {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 100%);
+        border: 2px solid rgba(255, 255, 255, 0.2);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 3px solid white;
-    }
-
-        .avatar i {
-            font-size: 3rem;
-        }
-
-    .account-header h1 {
-        margin: 0;
-        font-size: 1.8rem;
-        font-weight: 600;
-    }
-
-    .account-info {
-        padding: 2rem;
-    }
-
-    .info-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1rem 0;
-        border-bottom: 1px solid #eee;
-    }
-
-        .info-item:last-child {
-            border-bottom: none;
-        }
-
-    .info-label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: #666;
-        font-size: 0.95rem;
-    }
-
-        .info-label i {
-            color: #667eea;
-        }
-
-    .info-value {
-        font-weight: 500;
-        color: #333;
-        font-size: 1rem;
-    }
-
-    .role-badge {
-        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
-        color: white;
-        padding: 0.3rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 600;
-    }
-
-    .account-actions {
-        padding: 1.5rem 2rem;
-        background: #f8f9fa;
-        border-top: 1px solid #eee;
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .btn-action {
-        padding: 0.8rem 1.5rem;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 500;
-        font-size: 0.95rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
+        cursor: pointer;
         transition: all 0.3s ease;
     }
 
-    .edit-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
-    }
-
-    .logout-btn {
-        background: white;
-        color: #dc3545;
-        border: 2px solid #dc3545;
-    }
-
-    .edit-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
-
-    .logout-btn:hover {
-        background: #dc3545;
-        color: white;
-        transform: translateY(-2px);
-    }
-
-    @@keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
+        .avatar-action-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 20px rgba(96, 165, 250, 0.5);
         }
 
-        to {
-            opacity: 1;
-            transform: translateY(0);
+        .avatar-action-btn svg {
+            width: 18px;
+            height: 18px;
+            color: white;
+        }
+
+    .profile-title {
+        margin-bottom: 20px;
+    }
+
+    .profile-name {
+        font-size: 32px;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 8px;
+        letter-spacing: -0.5px;
+    }
+
+    .profile-role {
+        font-size: 16px;
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    .profile-stats {
+        display: flex;
+        gap: 30px;
+        margin-top: 20px;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .stat-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: #60a5fa;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Контент профиля */
+    .profile-content {
+        padding: 40px;
+    }
+
+    .info-section {
+        margin-bottom: 40px;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-icon {
+        width: 20px;
+        height: 20px;
+        color: #60a5fa;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+
+    @@media (max-width: 768px) {
+        .info-grid {
+            grid-template-columns: 1fr;
         }
     }
 
+    .info-item {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 20px;
+        transition: all 0.3s ease;
+    }
+
+        .info-item.editing {
+            background: rgba(96, 165, 250, 0.1);
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+
+        .info-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+    .info-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #94a3b8;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .info-label svg {
+            width: 16px;
+            height: 16px;
+            color: #60a5fa;
+        }
+
+    .info-display {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .info-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: #ffffff;
+    }
+
+    .id-value {
+        font-family: 'Consolas', 'Monaco', monospace;
+        letter-spacing: 1px;
+        color: #60a5fa;
+    }
+
+    /* Кнопки */
+    .edit-btn, .copy-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+    }
+
+        .edit-btn:hover, .copy-btn:hover {
+            background: rgba(96, 165, 250, 0.2);
+            border-color: rgba(96, 165, 250, 0.4);
+            transform: scale(1.1);
+        }
+
+        .edit-btn svg, .copy-btn svg {
+            width: 16px;
+            height: 16px;
+            color: #cbd5e1;
+        }
+
+        .edit-btn:hover svg, .copy-btn:hover svg {
+            color: #60a5fa;
+        }
+
+    /* Редактирование имени */
+    .info-edit {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .edit-input {
+        background: rgba(15, 23, 42, 0.8);
+        border: 2px solid rgba(96, 165, 250, 0.3);
+        border-radius: 12px;
+        padding: 12px 16px;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+        .edit-input:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+
+        .edit-input::placeholder {
+            color: #64748b;
+        }
+
+    .edit-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .save-btn, .cancel-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .save-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+
+        .save-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .save-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    .cancel-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: #cbd5e1;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+        .cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .save-btn svg, .cancel-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+    /* Бейджи ролей */
+    .role-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+        .role-badge.admin {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .role-badge.user {
+            background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 100%);
+            color: white;
+        }
+
+        .role-badge.moderator {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+
+    /* Секция действий */
+    .actions-section {
+        margin-top: 40px;
+    }
+
+    .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 16px 24px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        color: #cbd5e1;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .action-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+    .change-password:hover {
+        background: rgba(96, 165, 250, 0.1);
+        border-color: rgba(96, 165, 250, 0.3);
+        color: #60a5fa;
+    }
+
+        .change-password:hover svg {
+            color: #60a5fa;
+        }
+
+    .delete-account:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+    }
+
+        .delete-account:hover svg {
+            color: #ef4444;
+        }
+
+    .logout:hover {
+        background: rgba(245, 158, 11, 0.1);
+        border-color: rgba(245, 158, 11, 0.3);
+        color: #f59e0b;
+    }
+
+        .logout:hover svg {
+            color: #f59e0b;
+        }
+
+    /* Адаптивность */
     @@media (max-width: 640px) {
-
-
         .account-page {
-            padding: 1rem;
+            padding: 20px 10px;
         }
 
-        .account-header {
-            padding: 1.5rem;
-        }
-
-        .avatar-section {
-            flex-direction: column;
+        .profile-header {
+            padding: 30px 20px;
             text-align: center;
-            gap: 1rem;
+        }
+
+        .avatar {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+        }
+
+        .avatar-initials {
+            font-size: 36px;
+        }
+
+        .avatar-actions {
+            right: calc(50% - 50px);
+            bottom: -8px;
+        }
+
+        .profile-stats {
+            justify-content: center;
+        }
+
+        .profile-content {
+            padding: 30px 20px;
+        }
+
+        .profile-name {
+            font-size: 24px;
         }
 
         .info-item {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
+            padding: 16px;
         }
 
-        .account-actions {
+        .edit-actions {
             flex-direction: column;
         }
 
-        .btn-action {
-            justify-content: center;
+        .actions-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>

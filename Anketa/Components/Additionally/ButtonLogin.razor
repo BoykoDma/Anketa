@@ -2,27 +2,47 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @inject Microsoft.AspNetCore.Components.NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JSRuntime
 
 <AuthorizeView>
     <Authorized>
         <div class="account-dropdown-container" @ref="dropdownElement">
-            <button class="account-trigger"
+            <button class="account-trigger @(isDropdownOpen ? "active" : "")"
                     @onclick="ToggleDropdown"
                     aria-expanded="false"
                     type="button">
-                <img src="/img/account.png"
-                     class="account-avatar"
-                     alt="Аватар" />
+                <svg class="avatar-icon" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="8" r="4" fill="currentColor" />
+                    <path d="M20 21C20 19.6044 20 18.4067 19.8278 17.4451C19.44 15.2598 17.7402 13.56 15.5549 13.1722C14.5933 13 13.3956 13 12 13C10.6044 13 9.40673 13 8.44506 13.1722C6.25984 13.56 4.56004 15.2598 4.17224 17.4451C4 18.4067 4 19.6044 4 21"
+                          fill="currentColor" />
+                </svg>
             </button>
 
             <div class="dropdown-menu-account @(isDropdownOpen ? "show" : "")">
+                <div class="dropdown-header">
+                    <div class="user-info">
+                        <div class="user-name">@userName</div>
+                        <div class="user-email">@userEmail</div>
+                    </div>
+                </div>
+
+                <div class="dropdown-divider"></div>
+
                 <a class="dropdown-item" href="/account">
-                    <i class="bi bi-person me-2"></i>Профиль
+                    <div class="dropdown-icon">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <span>Профиль</span>
                 </a>
-                <hr class="dropdown-divider" />
-                <button class="dropdown-item text-danger" @onclick="Logout">
-                    <i class="bi bi-box-arrow-right me-2"></i>Выйти
+
+                <div class="dropdown-divider"></div>
+
+                <button class="dropdown-item logout" @onclick="Logout">
+                    <div class="dropdown-icon">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </div>
+                    <span>Выйти</span>
                 </button>
             </div>
         </div>
@@ -37,13 +57,16 @@
 
 <Login @bind-isVisible="showDialog" />
 
+
+
 @code {
     private bool showDialog = false;
     private bool isDropdownOpen = false;
     private ElementReference dropdownElement;
 
-    private string? UserImage { get; set; }
-    private string UserName { get; set; } = "Пользователь";
+    private string userName = "";
+    private string tempUserName = "";
+    private string userEmail = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -52,7 +75,19 @@
 
     private async Task LoadUserData()
     {
-        
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            userName = user.Identity.Name ?? "Не указано";
+            tempUserName = userName;
+
+            var userIdString = user.FindFirst("UserId")?.Value
+                             ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            userEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "Не указано";
+        }
     }
 
     private void ShowAddDialog()
@@ -94,114 +129,407 @@
 }
 
 <style>
-    .account-img {
-        width: 35px;
-    }
-
+    /* Кнопка входа - в стиле navbar */
     .login-btn-fixed {
-        font-size: 0.8rem;
+        font-size: 14px;
         color: white;
-        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
-        border: none;
-        border-radius: 6px;
-        height: 2rem;
-        padding: 0 1rem;
-        transition: all 0.3s ease;
+        background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 100%);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        height: 40px;
+        padding: 0 20px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         font-family: inherit;
         position: fixed;
-        top: 0.75rem;
-        right: 1rem;
+        top: 20px;
+        right: 24px;
         z-index: 1000;
-        box-shadow: 0 0 15px rgba(237, 137, 54, 0.7), 0 2px 8px rgba(237, 137, 54, 0.4);
-        font-weight: 500;
+        box-shadow: 0 4px 20px rgba(96, 165, 250, 0.3);
+        font-weight: 600;
         letter-spacing: 0.3px;
     }
 
-        .login-btn-fixed:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 20px rgba(237, 137, 54, 0.9), 0 4px 12px rgba(237, 137, 54, 0.6);
-        }
+    .login-btn-fixed:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(96, 165, 250, 0.5);
+        background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+    }
 
-
+    /* Контейнер для dropdown аккаунта */
     .account-dropdown-container {
         position: fixed;
-        top: 0.75rem;
-        right: 1rem;
+        top: 20px;
+        right: 24px;
         z-index: 1000;
         display: inline-block;
     }
 
+    /* Кнопка аккаунта */
     .account-trigger {
-        width: 35px;
-        height: 35px;
+        width: 40px;
+        height: 40px;
         padding: 0;
         border: none;
         border-radius: 50%;
-        background: transparent;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        position: relative;
+        border: 2px solid rgba(255, 255, 255, 0.2);
     }
 
-        .account-trigger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
+    .account-trigger:hover {
+        transform: translateY(-2px) scale(1.05);
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(96, 165, 250, 0.4);
+        box-shadow: 0 6px 20px rgba(96, 165, 250, 0.3);
+    }
 
+    .account-trigger.active {
+        background: rgba(96, 165, 250, 0.2);
+        border-color: rgba(96, 165, 250, 0.6);
+        box-shadow: 0 4px 15px rgba(96, 165, 250, 0.4);
+    }
+
+    .account-indicator {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 12px;
+        height: 12px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border-radius: 50%;
+        border: 2px solid #1e293b;
+        animation: pulse 2s infinite;
+    }
+
+    /* Аватар */
     .account-avatar {
         width: 100%;
         height: 100%;
         border-radius: 50%;
         object-fit: cover;
-        border: 2px solid #fff;
     }
 
+    /* Dropdown меню */
     .dropdown-menu-account {
         position: absolute;
-        top: 100%;
+        top: calc(100% + 10px);
         right: 0;
-        margin-top: 10px;
-        min-width: 200px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        min-width: 240px;
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
         z-index: 1001;
-        padding: 8px 0;
-        display: none;
-        animation: fadeIn 0.2s ease;
+        padding: 0;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-        .dropdown-menu-account.show {
-            display: block;
-        }
-
-    .account-trigger.gradient {
-        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
-        box-shadow: 0 0 15px rgba(237, 137, 54, 0.7), 0 2px 8px rgba(237, 137, 54, 0.4);
+    .dropdown-menu-account.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
     }
 
-        .account-trigger.gradient:hover {
-            box-shadow: 0 0 20px rgba(237, 137, 54, 0.9), 0 4px 12px rgba(237, 137, 54, 0.6);
+    /* Заголовок dropdown */
+    .dropdown-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(15, 23, 42, 0.8);
+    }
+
+    .user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .user-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #ffffff;
+    }
+
+    .user-email {
+        font-size: 12px;
+        color: #94a3b8;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Разделитель */
+    .dropdown-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 8px 0;
+    }
+
+    /* Элементы dropdown */
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        width: 100%;
+        background: transparent;
+        border: none;
+        color: #cbd5e1;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .dropdown-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+        padding-left: 24px;
+    }
+
+    .dropdown-item.logout:hover {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+
+    .dropdown-icon {
+        width: 18px;
+        height: 18px;
+        color: #94a3b8;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dropdown-item:hover .dropdown-icon {
+        color: currentColor;
+    }
+
+    /* Анимации */
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
+    }
+
+    /* Адаптивность */
+    @@media (max-width: 768px) {
+        .login-btn-fixed,
+        .account-dropdown-container {
+            right: 16px;
+            top: 16px;
         }
 
+        .dropdown-menu-account {
+            position: fixed;
+            top: 70px;
+            right: 16px;
+            left: 16px;
+            min-width: auto;
+            width: calc(100% - 32px);
+        }
+
+        .login-btn-fixed {
+            font-size: 12px;
+            height: 36px;
+            padding: 0 16px;
+        }
+
+        .account-trigger {
+            width: 36px;
+            height: 36px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .login-btn-fixed span {
+            display: none;
+        }
+
+        .login-btn-fixed {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .dropdown-menu-account {
+            width: calc(100% - 20px);
+            right: 10px;
+            left: 10px;
+        }
+
+        .avatar-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
+        }
+
+        .avatar-initials {
+            font-size: 48px;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .avatar-icon {
+            width: 60px;
+            height: 60px;
+            color: white;
+        }
+
+        .avatar-actions {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+        }
+    }
 </style>
 
 <style>
-    @@media (max-width: 770px) {
-        .login-btn-fixed {
-            right: 100px;
-            left: auto;
-            top: 0.75rem;
+    /* Кнопка аккаунта */
+    .account-trigger {
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%);
+        backdrop-filter: blur(10px);
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        border: 2px solid rgba(96, 165, 250, 0.3);
+        box-shadow: 0 4px 15px rgba(96, 165, 250, 0.2);
+    }
+
+        .account-trigger:hover {
+            transform: translateY(-2px) scale(1.05);
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.3) 0%, rgba(56, 189, 248, 0.3) 100%);
+            border-color: rgba(96, 165, 250, 0.6);
+            box-shadow: 0 6px 25px rgba(96, 165, 250, 0.4);
         }
 
-        .account-dropdown-container {
-            right: 90px;
-            left: auto;
-            top: 0.75rem;
+        .account-trigger.active {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.4) 0%, rgba(56, 189, 248, 0.4) 100%);
+            border-color: rgba(96, 165, 250, 0.8);
+            box-shadow: 0 4px 20px rgba(96, 165, 250, 0.5);
+        }
+
+    /* Иконка аватара */
+    .avatar-icon {
+        width: 24px;
+        height: 24px;
+        color: #60a5fa;
+        filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.5));
+        transition: all 0.3s ease;
+    }
+
+    .account-trigger:hover .avatar-icon {
+        color: #38bdf8;
+        filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.7));
+        transform: scale(1.1);
+    }
+
+    .account-trigger.active .avatar-icon {
+        color: #0ea5e9;
+        filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.8));
+    }
+
+    /* Индикатор статуса */
+    .account-indicator {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 12px;
+        height: 12px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border-radius: 50%;
+        border: 2px solid #1e293b;
+        animation: pulse 2s infinite;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Анимация пульсации */
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            transform: scale(1);
+        }
+
+        70% {
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+            transform: scale(1.1);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            transform: scale(1);
+        }
+    }
+
+    /* Адаптивность */
+    @@media (max-width: 768px) {
+        .account-trigger {
+            width: 36px;
+            height: 36px;
+        }
+
+        .avatar-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .account-indicator {
+            width: 10px;
+            height: 10px;
+            top: -1px;
+            right: -1px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .account-trigger {
+            width: 32px;
+            height: 32px;
+        }
+
+        .avatar-icon {
+            width: 18px;
+            height: 18px;
         }
     }
 </style>

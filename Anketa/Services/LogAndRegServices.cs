@@ -1,6 +1,7 @@
 ﻿using Anketa.Models;
 using Anketa.Models.ConnectionDB;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 using System.Text.Json;
 
@@ -16,6 +17,17 @@ namespace Anketa.Services
         {
             _context = context;
             _authenticationStateProvider = authenticationStateProvider;
+        }
+
+        public async Task DeleteAccount(int id)
+        {
+            var account = await _context.Users.FindAsync(id);
+
+            if (account != null)
+            {
+                _context.Users.Remove(account);
+                await _context.SaveChangesAsync();
+            }
         }
 
         public async Task<bool> RegisterUser(string name, string email, string password)
