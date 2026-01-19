@@ -1,0 +1,207 @@
+﻿@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject Microsoft.AspNetCore.Components.NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<AuthorizeView>
+    <Authorized>
+        <div class="account-dropdown-container" @ref="dropdownElement">
+            <button class="account-trigger"
+                    @onclick="ToggleDropdown"
+                    aria-expanded="false"
+                    type="button">
+                <img src="/img/account.png"
+                     class="account-avatar"
+                     alt="Аватар" />
+            </button>
+
+            <div class="dropdown-menu-account @(isDropdownOpen ? "show" : "")">
+                <a class="dropdown-item" href="/account">
+                    <i class="bi bi-person me-2"></i>Профиль
+                </a>
+                <hr class="dropdown-divider" />
+                <button class="dropdown-item text-danger" @onclick="Logout">
+                    <i class="bi bi-box-arrow-right me-2"></i>Выйти
+                </button>
+            </div>
+        </div>
+    </Authorized>
+
+    <NotAuthorized>
+        <button class="login-btn-fixed" @onclick="ShowAddDialog">
+            <span>Войти</span>
+        </button>
+    </NotAuthorized>
+</AuthorizeView>
+
+<Login @bind-isVisible="showDialog" />
+
+@code {
+    private bool showDialog = false;
+    private bool isDropdownOpen = false;
+    private ElementReference dropdownElement;
+
+    private string? UserImage { get; set; }
+    private string UserName { get; set; } = "Пользователь";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserData();
+    }
+
+    private async Task LoadUserData()
+    {
+        
+    }
+
+    private void ShowAddDialog()
+    {
+        showDialog = true;
+    }
+
+    private async Task ToggleDropdown()
+    {
+        isDropdownOpen = !isDropdownOpen;
+        await CloseDropdownOnClickOutside();
+    }
+
+    private async Task CloseDropdownOnClickOutside()
+    {
+        if (isDropdownOpen)
+        {
+            await JSRuntime.InvokeVoidAsync("setupDropdownClose", dropdownElement,
+                DotNetObjectReference.Create(this));
+        }
+    }
+
+    [JSInvokable]
+    public void CloseDropdown()
+    {
+        isDropdownOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task Logout()
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auth_user_session");
+
+        await JSRuntime.InvokeVoidAsync("eval",
+            "document.cookie = 'parser-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';");
+
+        NavigationManager.NavigateTo("/", true);
+    }
+}
+
+<style>
+    .account-img {
+        width: 35px;
+    }
+
+    .login-btn-fixed {
+        font-size: 0.8rem;
+        color: white;
+        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        border: none;
+        border-radius: 6px;
+        height: 2rem;
+        padding: 0 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        font-family: inherit;
+        position: fixed;
+        top: 0.75rem;
+        right: 1rem;
+        z-index: 1000;
+        box-shadow: 0 0 15px rgba(237, 137, 54, 0.7), 0 2px 8px rgba(237, 137, 54, 0.4);
+        font-weight: 500;
+        letter-spacing: 0.3px;
+    }
+
+        .login-btn-fixed:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(237, 137, 54, 0.9), 0 4px 12px rgba(237, 137, 54, 0.6);
+        }
+
+
+    .account-dropdown-container {
+        position: fixed;
+        top: 0.75rem;
+        right: 1rem;
+        z-index: 1000;
+        display: inline-block;
+    }
+
+    .account-trigger {
+        width: 35px;
+        height: 35px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+        .account-trigger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+    .account-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #fff;
+    }
+
+    .dropdown-menu-account {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 10px;
+        min-width: 200px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        z-index: 1001;
+        padding: 8px 0;
+        display: none;
+        animation: fadeIn 0.2s ease;
+    }
+
+        .dropdown-menu-account.show {
+            display: block;
+        }
+
+    .account-trigger.gradient {
+        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        box-shadow: 0 0 15px rgba(237, 137, 54, 0.7), 0 2px 8px rgba(237, 137, 54, 0.4);
+    }
+
+        .account-trigger.gradient:hover {
+            box-shadow: 0 0 20px rgba(237, 137, 54, 0.9), 0 4px 12px rgba(237, 137, 54, 0.6);
+        }
+
+</style>
+
+<style>
+    @@media (max-width: 770px) {
+        .login-btn-fixed {
+            right: 100px;
+            left: auto;
+            top: 0.75rem;
+        }
+
+        .account-dropdown-container {
+            right: 90px;
+            left: auto;
+            top: 0.75rem;
+        }
+    }
+</style>

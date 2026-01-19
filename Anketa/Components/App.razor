@@ -16,8 +16,21 @@
 
 <body>
     <Routes />
-    <ReconnectModal />
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="_framework/blazor.web.js"></script>
+    <script>
+        function setupDropdownClose(dropdownElement, dotNetHelper) {
+            const handler = function(event) {
+                if (!dropdownElement.contains(event.target)) {
+                    dotNetHelper.invokeMethodAsync('CloseDropdown');
+                    document.removeEventListener('click', handler);
+                }
+            };
+
+            setTimeout(() => {
+                document.addEventListener('click', handler);
+            }, 100);
+        }
+    </script>
 </body>
 
 </html>
