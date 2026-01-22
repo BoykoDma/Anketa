@@ -1,20 +1,19 @@
-﻿using Anketa.Models;
+﻿using Anketa.Components.Pages;
+using Anketa.Models;
 using Anketa.Models.ConnectionDB;
 using Microsoft.EntityFrameworkCore;
-using System;
 using System.Text.Json;
 
 namespace Anketa.Services
 {
-
     public class TestService
     {
-        private readonly Context context;
+        private readonly Context _context;
         private readonly ILogger<TestService> _logger;
 
-        public TestService(Context _context, ILogger<TestService> logger)
+        public TestService(Context context, ILogger<TestService> logger)
         {
-            context = _context;
+            _context = context;
             _logger = logger;
         }
 
@@ -22,7 +21,7 @@ namespace Anketa.Services
 
         public async Task<TestResultModel?> GetTestResultAsync(int resultId)
         {
-            return await context.TestResults
+            return await _context.TestResults
                 .Include(r => r.Test)
                 .ThenInclude(t => t.Questions)
                 .FirstOrDefaultAsync(r => r.Id == resultId);
@@ -32,14 +31,14 @@ namespace Anketa.Services
         {
             try
             {
-                var test = await context.Tests
+                var test = await _context.Tests
                     .FirstOrDefaultAsync(t => t.Id == testId && t.IsPublished);
 
                 if (test == null)
                     return null;
 
                 // Загружаем вопросы отдельно
-                test.Questions = await context.Questions
+                test.Questions = await _context.Questions
                     .Where(q => q.TestId == testId)
                     .OrderBy(q => q.Order)
                     .ToListAsync();
@@ -57,19 +56,35 @@ namespace Anketa.Services
         {
             try
             {
-                // Получаем тест и вопросы для расчета баллов
-                var test = await context.Tests
+                // Получаем тест
+                var test = await _context.Tests
+                    .Include(t => t.Questions)
                     .FirstOrDefaultAsync(t => t.Id == model.TestId);
 
                 if (test == null)
                     throw new Exception($"Тест с ID {model.TestId} не найден");
 
-                var questions = await context.Questions
-                    .Where(q => q.TestId == model.TestId)
-                    .ToListAsync();
+                // Проверяем обязательные поля
+                ValidateRequiredFields(test, model);
 
-                // Рассчитываем баллы
-                var scoreResult = CalculateScore(questions, model.Answers);
+                // Автоматически рассчитываем баллы
+                int totalQuestions = test.Questions.Count;
+                decimal pointsPerQuestion = totalQuestions > 0 ? 5m / totalQuestions : 0;
+
+                // Рассчитываем результат
+                decimal totalScore = 0;
+
+                foreach (var question in test.Questions)
+                {
+                    var answer = model.Answers.FirstOrDefault(a => a.QuestionId == question.Id);
+                    if (answer != null && IsAnswerCorrect(question, answer))
+                    {
+                        totalScore += pointsPerQuestion;
+                    }
+                }
+
+                // Округляем до 2 знаков после запятой
+                totalScore = Math.Round(totalScore, 2);
 
                 // Создаем результат
                 var testResult = new TestResultModel
@@ -79,16 +94,16 @@ namespace Anketa.Services
                     Group = model.Group,
                     Age = model.Age,
                     CompletedAt = DateTime.UtcNow,
-                    Score = scoreResult.ActualScore,
-                    MaxScore = scoreResult.MaxScore,
+                    Score = totalScore,
+                    MaxScore = 5m, // Всегда 5
                     AnswersJson = JsonSerializer.Serialize(model.Answers)
                 };
 
                 // Сохраняем
-                context.TestResults.Add(testResult);
-                await context.SaveChangesAsync();
+                _context.TestResults.Add(testResult);
+                await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Сохранен результат теста {TestId}, результат ID: {ResultId}",
+                _logger.LogInformation("Сохранен результат теста {TestId}, ID результата: {ResultId}",
                     model.TestId, testResult.Id);
 
                 return testResult;
@@ -98,6 +113,47 @@ namespace Anketa.Services
                 _logger.LogError(ex, "Ошибка при сохранении результата теста");
                 throw;
             }
+        }
+
+        private bool IsAnswerCorrect(Question question, QuestionAnswerViewModel answer)
+        {
+            return question.Type switch
+            {
+                QuestionType.SingleChoice => CheckSingleChoice(question, answer),
+                QuestionType.MultipleChoice => CheckMultipleChoice(question, answer),
+                QuestionType.TextAnswer => CheckTextAnswer(question, answer),
+                QuestionType.TrueFalse => CheckTrueFalse(question, answer),
+                _ => false
+            };
+        }
+
+        private bool CheckSingleChoice(Question question, QuestionAnswerViewModel answer)
+        {
+            var correctOption = question.AnswerOptions.FirstOrDefault(o => o.IsCorrect);
+            return correctOption != null && answer.SelectedOptionId == correctOption.Id;
+        }
+
+        private bool CheckMultipleChoice(Question question, QuestionAnswerViewModel answer)
+        {
+            var correctOptions = question.AnswerOptions.Where(o => o.IsCorrect).Select(o => o.Id).ToList();
+            return correctOptions.Count > 0 &&
+                   correctOptions.All(id => answer.SelectedOptionIds.Contains(id)) &&
+                   answer.SelectedOptionIds.Count == correctOptions.Count;
+        }
+
+        private bool CheckTextAnswer(Question question, QuestionAnswerViewModel answer)
+        {
+            if (string.IsNullOrWhiteSpace(answer.TextAnswer) ||
+                string.IsNullOrWhiteSpace(question.CorrectTextAnswer))
+                return false;
+
+            return answer.TextAnswer.Trim().ToLower() == question.CorrectTextAnswer.Trim().ToLower();
+        }
+
+        private bool CheckTrueFalse(Question question, QuestionAnswerViewModel answer)
+        {
+            var correctOption = question.AnswerOptions.FirstOrDefault(o => o.IsCorrect);
+            return correctOption != null && answer.SelectedOptionId == correctOption.Id;
         }
 
         private void ValidateRequiredFields(Test test, TestTakingViewModel model)
@@ -115,98 +171,30 @@ namespace Anketa.Services
         private ScoreCalculationResult CalculateScore(List<Question> questions, List<QuestionAnswerViewModel> answers)
         {
             decimal totalScore = 0;
-            decimal maxScore = questions.Sum(q => q.Points);
+
+            // Используем 5 как максимальный балл
+            decimal maxScore = 5m;
 
             foreach (var question in questions)
             {
                 var answer = answers.FirstOrDefault(a => a.QuestionId == question.Id);
-                totalScore += CalculateQuestionScore(question, answer);
+                if (answer != null && IsAnswerCorrect(question, answer))
+                {
+                    // Каждый правильный ответ добавляет свою долю от 5 баллов
+                    totalScore += maxScore / questions.Count;
+                }
             }
 
             return new ScoreCalculationResult
             {
-                ActualScore = totalScore,
+                ActualScore = Math.Round(totalScore, 2),
                 MaxScore = maxScore
             };
         }
 
-        private decimal CalculateQuestionScore(Question question, QuestionAnswerViewModel? answer)
-        {
-            if (answer == null)
-                return 0;
-
-            return question.Type switch
-            {
-                QuestionType.SingleChoice => CalculateSingleChoiceScore(question, answer),
-                QuestionType.MultipleChoice => CalculateMultipleChoiceScore(question, answer),
-                QuestionType.TextAnswer => CalculateTextAnswerScore(question, answer),
-                QuestionType.TrueFalse => CalculateTrueFalseScore(question, answer),
-                _ => 0
-            };
-        }
-
-        private decimal CalculateSingleChoiceScore(Question question, QuestionAnswerViewModel answer)
-        {
-            var correctOption = question.AnswerOptions.FirstOrDefault(o => o.IsCorrect);
-            if (correctOption == null) return 0;
-
-            return answer.SelectedOptionId == correctOption.Id ? question.Points : 0;
-        }
-
-        private decimal CalculateMultipleChoiceScore(Question question, QuestionAnswerViewModel answer)
-        {
-            var correctOptions = question.AnswerOptions.Where(o => o.IsCorrect).ToList();
-            if (correctOptions.Count == 0) return 0;
-
-            // Подсчитываем правильные выборы пользователя
-            int correctSelected = 0;
-            int totalSelected = answer.SelectedOptionIds.Count;
-
-            foreach (var selectedId in answer.SelectedOptionIds)
-            {
-                if (correctOptions.Any(co => co.Id == selectedId))
-                    correctSelected++;
-            }
-
-            // Все правильные должны быть выбраны, ничего лишнего
-            if (correctSelected == correctOptions.Count && totalSelected == correctOptions.Count)
-                return question.Points;
-
-            return 0;
-        }
-
-        private decimal CalculateTextAnswerScore(Question question, QuestionAnswerViewModel answer)
-        {
-            if (string.IsNullOrWhiteSpace(answer.TextAnswer) ||
-                string.IsNullOrWhiteSpace(question.CorrectTextAnswer))
-                return 0;
-
-            var userAnswer = answer.TextAnswer.Trim().ToLower();
-            var correctAnswer = question.CorrectTextAnswer.Trim().ToLower();
-
-            return userAnswer == correctAnswer ? question.Points : 0;
-        }
-
-        private decimal CalculateTrueFalseScore(Question question, QuestionAnswerViewModel answer)
-        {
-            if (!answer.SelectedOptionId.HasValue) return 0;
-
-            var selectedOption = question.AnswerOptions
-                .FirstOrDefault(o => o.Id == answer.SelectedOptionId.Value);
-
-            return selectedOption?.IsCorrect == true ? question.Points : 0;
-        }
-
-        //public async Task<TestResult?> GetTestResultAsync(int resultId)
-        //{
-        //    return await context.TestResults
-        //        .Include(r => r.Test)
-        //        .FirstOrDefaultAsync(r => r.Id == resultId);
-        //}
-
         public async Task<List<TestResultModel>> GetTestResultsAsync(int testId)
         {
-            return await context.TestResults
+            return await _context.TestResults
                 .Where(r => r.TestId == testId)
                 .OrderByDescending(r => r.CompletedAt)
                 .ToListAsync();
@@ -214,10 +202,9 @@ namespace Anketa.Services
 
         public async Task<TestResultDetailsViewModel> GetResultDetailsAsync(int resultId)
         {
-            var result = await context.TestResults
+            var result = await _context.TestResults
                 .Include(r => r.Test)
                 .ThenInclude(t => t.Questions)
-                .ThenInclude(q => q.AnswerOptions)
                 .FirstOrDefaultAsync(r => r.Id == resultId);
 
             if (result == null)
@@ -227,22 +214,23 @@ namespace Anketa.Services
                 result.AnswersJson) ?? new List<QuestionAnswerViewModel>();
 
             var questionDetails = new List<QuestionResultDetail>();
+            decimal pointsPerQuestion = result.Test!.Questions.Count > 0 ? 5m / result.Test.Questions.Count : 0;
 
-            foreach (var question in result.Test!.Questions.OrderBy(q => q.Order))
+            foreach (var question in result.Test.Questions.OrderBy(q => q.Order))
             {
                 var userAnswer = userAnswers.FirstOrDefault(a => a.QuestionId == question.Id);
-                var isCorrect = CalculateQuestionScore(question, userAnswer) > 0;
+                var isCorrect = IsAnswerCorrect(question, userAnswer);
 
                 questionDetails.Add(new QuestionResultDetail
                 {
                     QuestionId = question.Id,
                     QuestionText = question.Text,
                     QuestionType = question.Type,
-                    Points = question.Points,
+                    Points = pointsPerQuestion,
                     UserAnswer = FormatUserAnswer(question, userAnswer),
                     CorrectAnswer = GetCorrectAnswerText(question),
                     IsCorrect = isCorrect,
-                    PointsAwarded = isCorrect ? question.Points : 0
+                    PointsAwarded = isCorrect ? pointsPerQuestion : 0
                 });
             }
 
@@ -336,7 +324,7 @@ namespace Anketa.Services
                         Order = questionOrder++,
                         Text = questionVm.Text,
                         Type = questionVm.Type,
-                        Points = questionVm.Points,
+                        // Баллы не сохраняем - рассчитываются автоматически
                         CorrectTextAnswer = questionVm.CorrectTextAnswer
                     };
 
@@ -348,15 +336,15 @@ namespace Anketa.Services
                         {
                             Text = optionVm.Text,
                             IsCorrect = optionVm.IsCorrect,
-                            Id = optionOrder++ // Временный ID для связей
+                            Id = optionOrder++
                         });
                     }
 
                     test.Questions.Add(question);
                 }
 
-                context.Tests.Add(test);
-                await context.SaveChangesAsync();
+                _context.Tests.Add(test);
+                await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Создан тест {TestId} пользователем {UserId}", test.Id, userId);
                 return test;
@@ -372,9 +360,8 @@ namespace Anketa.Services
         {
             try
             {
-                var test = await context.Tests
+                var test = await _context.Tests
                     .Include(t => t.Questions)
-                    .ThenInclude(q => q.AnswerOptions)
                     .FirstOrDefaultAsync(t => t.Id == testId);
 
                 if (test == null)
@@ -388,7 +375,7 @@ namespace Anketa.Services
                 test.RequireAge = model.RequireAge;
 
                 // Удаляем старые вопросы
-                context.Questions.RemoveRange(test.Questions);
+                _context.Questions.RemoveRange(test.Questions);
 
                 // Добавляем новые вопросы
                 int questionOrder = 1;
@@ -400,7 +387,6 @@ namespace Anketa.Services
                         Order = questionOrder++,
                         Text = questionVm.Text,
                         Type = questionVm.Type,
-                        Points = questionVm.Points,
                         CorrectTextAnswer = questionVm.CorrectTextAnswer
                     };
 
@@ -414,10 +400,10 @@ namespace Anketa.Services
                         });
                     }
 
-                    context.Questions.Add(question);
+                    _context.Questions.Add(question);
                 }
 
-                await context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Обновлен тест {TestId}", testId);
                 return test;
@@ -433,12 +419,12 @@ namespace Anketa.Services
         {
             try
             {
-                var test = await context.Tests.FindAsync(testId);
+                var test = await _context.Tests.FindAsync(testId);
                 if (test == null)
                     return false;
 
-                context.Tests.Remove(test);
-                await context.SaveChangesAsync();
+                _context.Tests.Remove(test);
+                await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Удален тест {TestId}", testId);
                 return true;
@@ -450,17 +436,9 @@ namespace Anketa.Services
             }
         }
 
-        //public async Task<Test?> GetTestAsync(int testId)
-        //{
-        //    return await context.Tests
-        //        .Include(t => t.Questions)
-        //        .ThenInclude(q => q.AnswerOptions)
-        //        .FirstOrDefaultAsync(t => t.Id == testId);
-        //}
-
         public async Task<List<Test>> GetUserTestsAsync(string userId)
         {
-            return await context.Tests
+            return await _context.Tests
                 .Where(t => t.CreatedByUserId == userId)
                 .Include(t => t.Questions)
                 .OrderByDescending(t => t.CreatedDate)
@@ -469,7 +447,7 @@ namespace Anketa.Services
 
         public async Task<List<Test>> GetPublishedTestsAsync()
         {
-            return await context.Tests
+            return await _context.Tests
                 .Where(t => t.IsPublished)
                 .Include(t => t.Questions)
                 .OrderByDescending(t => t.CreatedDate)

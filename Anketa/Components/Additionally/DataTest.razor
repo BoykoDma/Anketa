@@ -1,0 +1,230 @@
+﻿@rendermode InteractiveServer
+@using Anketa.Components.Additionally
+@using Anketa.Models
+@using Anketa.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@inject TestService TestService
+@inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthStateProvider
+<!-- Для неавторизованных пользователей -->
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Пройти тест</h4>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@guestModel" OnValidSubmit="@HandleGuestSubmit">
+                        <div class="mb-3">
+                            <label class="form-label">ID теста *</label>
+                            <InputNumber @bind-Value="guestModel.TestId"
+                                         class="form-control"
+                                         placeholder="Введите ID теста" />
+                            <small class="text-muted">ID теста должен быть предоставлен вам</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Ваше имя</label>
+                            <InputText @bind-Value="guestModel.UserName"
+                                       class="form-control"
+                                       placeholder="Введите ваше имя" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Группа</label>
+                            <InputText @bind-Value="guestModel.Group"
+                                       class="form-control"
+                                       placeholder="Введите группу (если требуется)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Возраст</label>
+                            <InputNumber @bind-Value="guestModel.Age"
+                                         class="form-control"
+                                         placeholder="Введите возраст" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100" disabled="@isLoadingTest">
+                            @if (isLoadingTest)
+                            {
+                                <span class="me-1">Загрузка...</span>
+
+                            }
+                            else
+                            {
+                                <i class="bi bi-play-circle">Начать тест</i>
+
+                            }
+                        </button>
+                    </EditForm>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger mt-3">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <div class="text-center mt-3">
+                        <p class="text-muted">
+                            <a href="/login">Войдите</a> чтобы создавать свои тесты
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Для авторизованных пользователей
+    private List<Test> userTests = new();
+    private bool isInitialized = false;
+
+    // Для неавторизованных пользователей
+    private GuestTestModel guestModel = new();
+    private bool isLoadingTest = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            await LoadUserTests();
+        }
+
+        isInitialized = true;
+    }
+
+    private async Task LoadUserTests()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.Identity?.Name;
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                userTests = await TestService.GetUserTestsAsync(userId);
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("console.error", "Ошибка загрузки тестов: " + ex.Message);
+        }
+    }
+
+    // Методы для авторизованных пользователей
+    private void NavigateToCreateTest()
+    {
+        Navigation.NavigateTo("/create-test");
+    }
+
+    private void NavigateToMyTests()
+    {
+        Navigation.NavigateTo("/my-tests");
+    }
+
+    private void NavigateToPassTest()
+    {
+        // Переключаемся в режим прохождения теста
+        Navigation.NavigateTo("/pass-test");
+    }
+
+    private void NavigateToTest(int testId)
+    {
+        Navigation.NavigateTo($"/test/{testId}");
+    }
+
+    private async Task ShareTest(int testId)
+    {
+        var url = $"{Navigation.BaseUri}pass-test/{testId}";
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", url);
+        await JSRuntime.InvokeVoidAsync("alert", "Ссылка скопирована в буфер обмена!");
+    }
+
+    // Методы для неавторизованных пользователей
+    private async Task HandleGuestSubmit()
+    {
+        if (!guestModel.TestId.HasValue)
+        {
+            errorMessage = "Введите ID теста";
+            return;
+        }
+
+        try
+        {
+            isLoadingTest = true;
+            errorMessage = string.Empty;
+
+            // Получаем тест
+            var test = await TestService.GetTestAsync(guestModel.TestId.Value);
+
+            if (test == null)
+            {
+                errorMessage = "Тест с таким ID не найден";
+                return;
+            }
+
+            if (!test.IsPublished)
+            {
+                errorMessage = "Этот тест не доступен для прохождения";
+                return;
+            }
+
+            // Проверяем обязательные поля
+            if (test.RequireName && string.IsNullOrWhiteSpace(guestModel.UserName))
+            {
+                errorMessage = "Для этого теста обязательно указать имя";
+                return;
+            }
+
+            if (test.RequireGroup && string.IsNullOrWhiteSpace(guestModel.Group))
+            {
+                errorMessage = "Для этого теста обязательно указать группу";
+                return;
+            }
+
+            if (test.RequireAge && !guestModel.Age.HasValue)
+            {
+                errorMessage = "Для этого теста обязательно указать возраст";
+                return;
+            }
+
+            // Создаем модель для прохождения теста
+            var takingModel = new TestTakingViewModel
+            {
+                TestId = test.Id,
+                UserName = guestModel.UserName,
+                Group = guestModel.Group,
+                Age = guestModel.Age,
+                Answers = new List<QuestionAnswerViewModel>()
+            };
+
+            // Переходим на страницу прохождения теста
+            Navigation.NavigateTo($"/take-test/{test.Id}?userName={Uri.EscapeDataString(guestModel.UserName ?? "")}&group={Uri.EscapeDataString(guestModel.Group ?? "")}&age={guestModel.Age}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingTest = false;
+        }
+    }
+
+    // Модель для неавторизованных пользователей
+    public class GuestTestModel
+    {
+        public int? TestId { get; set; }
+        public string? UserName { get; set; }
+        public string? Group { get; set; }
+        public int? Age { get; set; }
+    }
+}

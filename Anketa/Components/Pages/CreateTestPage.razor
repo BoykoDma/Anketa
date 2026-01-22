@@ -71,6 +71,25 @@
                             </div>
                         </div>
 
+                        @* <div class="alert alert-info mb-4">
+                            <h5><i class="bi bi-info-circle"></i> Система оценок</h5>
+                            <p class="mb-1">
+                                • Максимальная оценка за тест: <strong>5 баллов</strong><br>
+                                • Каждый вопрос оценивается одинаково<br>
+                                • Баллы за один вопрос: <strong>5 / количество вопросов</strong><br>
+                                • При 10 вопросах: 5 / 10 = 0.5 балла за вопрос<br>
+                                • При 5 вопросах: 5 / 5 = 1 балл за вопрос
+                            </p>
+                            @if (TestModel.Questions.Count > 0)
+                            {
+                                <p class="mb-0 mt-2">
+                                    <strong>Текущая статистика:</strong>
+                                    @TestModel.Questions.Count вопросов =
+                                    @Math.Round(5m / TestModel.Questions.Count, 2) балла за вопрос
+                                </p>
+                            }
+                        </div> *@
+
                         <!-- Вопросы теста -->
                         <div class="mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -135,6 +154,10 @@
     private bool isSubmitting = false;
     private int questionCounter = 1;
 
+    // Вычисляем баллы за вопрос динамически
+    private decimal PointsPerQuestion =>
+        TestModel.Questions.Count > 0 ? 5m / TestModel.Questions.Count : 0;
+
     protected override void OnInitialized()
     {
         // Добавляем первый вопрос по умолчанию
@@ -148,7 +171,7 @@
             Id = questionCounter++,
             Text = $"Вопрос {TestModel.Questions.Count + 1}",
             Type = QuestionType.SingleChoice,
-            Points = 1,
+            // Points не устанавливаем - будет вычисляться автоматически
             AnswerOptions = new List<AnswerOptionViewModel>
             {
                 new() { Id = 1, Text = "Вариант ответа 1", IsCorrect = true },
@@ -156,6 +179,7 @@
                 new() { Id = 3, Text = "Вариант ответа 3", IsCorrect = false }
             }
         });
+        StateHasChanged(); // Обновляем отображение баллов
     }
 
     private void UpdateQuestion(int index, QuestionViewModel question)
@@ -169,7 +193,7 @@
         if (TestModel.Questions.Count > 1)
         {
             TestModel.Questions.RemoveAt(index);
-            StateHasChanged();
+            StateHasChanged(); // Обновляем отображение баллов
         }
     }
 

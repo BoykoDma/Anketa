@@ -17,13 +17,17 @@
         public int? Id { get; set; }
         public string Text { get; set; } = string.Empty;
         public QuestionType Type { get; set; } = QuestionType.SingleChoice;
-        public decimal Points { get; set; } = 1;
+        // Убираем ручное поле Points
+        // public decimal Points { get; set; } = 1; <- УДАЛИТЬ
 
         // Для вопросов с выбором
         public List<AnswerOptionViewModel> AnswerOptions { get; set; } = new();
 
         // Для текстовых вопросов
         public string? CorrectTextAnswer { get; set; }
+
+        // Добавляем автоматическое свойство только для чтения
+        public decimal Points => 1m; // Будет пересчитываться динамически
     }
 
     public class AnswerOptionViewModel

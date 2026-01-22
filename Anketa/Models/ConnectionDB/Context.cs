@@ -42,5 +42,7 @@ namespace Anketa.Models.ConnectionDB
                 .Property(r => r.AnswersJson)
                 .HasColumnType("nvarchar(max)");
         }
+
+
     }
 }
