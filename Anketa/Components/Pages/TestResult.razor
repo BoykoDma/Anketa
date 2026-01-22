@@ -1,0 +1,226 @@
+﻿@page "/test-result/{ResultId:int}"
+@rendermode InteractiveServer
+@using Anketa.Models
+@using Anketa.Services
+@using System.Text.Json
+@inject TestService TestService
+@inject NavigationManager Navigation
+
+<PageTitle>Результат теста</PageTitle>
+
+@if (result == null || result.Test == null)
+{
+    <div class="container mt-5">
+        <div class="alert alert-warning">
+            Результат не найден
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <!-- Заголовок результата -->
+                    <div class="card-header bg-success text-white">
+                        <h3 class="mb-0">Результат теста: @result.Test.Title</h3>
+                    </div>
+
+                    <!-- Сводная информация -->
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5>Информация о прохождении:</h5>
+                                <p><strong>Имя:</strong> @result.UserName</p>
+                                @if (!string.IsNullOrEmpty(result.Group))
+                                {
+                                    <p><strong>Группа:</strong> @result.Group</p>
+                                }
+                                @if (result.Age.HasValue)
+                                {
+                                    <p><strong>Возраст:</strong> @result.Age</p>
+                                }
+                                <p><strong>Дата и время:</strong> @result.CompletedAt.ToString("dd.MM.yyyy HH:mm")</p>
+                            </div>
+                            <div class="col-md-6 text-center">
+                                <div class="display-1 @GetScoreColorClass(result.Score, result.MaxScore)">
+                                    @Math.Round((result.Score / result.MaxScore) * 100)%
+                                </div>
+                                <h4>@result.Score из @result.MaxScore баллов</h4>
+                            </div>
+                        </div>
+
+                        <!-- Детали по вопросам -->
+                        <h5>Детали ответов:</h5>
+                        <div class="list-group">
+                            @foreach (var question in result.Test.Questions)
+                            {
+                                var userAnswer = userAnswers?.FirstOrDefault(a => a.QuestionId == question.Id);
+                                var isCorrect = IsAnswerCorrect(question, userAnswer);
+
+                                <div class="list-group-item @(isCorrect ? "list-group-item-success" : "list-group-item-danger")">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">@question.Text</h6>
+                                        <small>@question.Points баллов</small>
+                                    </div>
+
+                                    <p class="mb-1">
+                                        <strong>Ваш ответ:</strong> @GetUserAnswerText(question, userAnswer)
+                                    </p>
+
+                                    @if (!isCorrect)
+                                    {
+                                        <p class="mb-1">
+                                            <strong>Правильный ответ:</strong> @GetCorrectAnswerText(question)
+                                        </p>
+                                    }
+
+                                    <small>@(isCorrect ? "✓ Верно" : "✗ Неверно")</small>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Кнопки действий -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-secondary" @onclick="GoHome">
+                                <i class="bi bi-house"></i> На главную
+                            </button>
+                            <button class="btn btn-primary" @onclick="GoToNewTest">
+                                <i class="bi bi-plus-circle"></i> Пройти другой тест
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ResultId { get; set; }
+
+    private TestResultModel? result;
+    private List<QuestionAnswerViewModel>? userAnswers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadResult();
+    }
+
+    private async Task LoadResult()
+    {
+        result = await TestService.GetTestResultAsync(ResultId);
+
+        if (result != null && !string.IsNullOrEmpty(result.AnswersJson))
+        {
+            userAnswers = JsonSerializer.Deserialize<List<QuestionAnswerViewModel>>(result.AnswersJson);
+        }
+    }
+
+    private string GetScoreColorClass(decimal score, decimal maxScore)
+    {
+        var percentage = (score / maxScore) * 100;
+
+        if (percentage >= 80) return "text-success";
+        if (percentage >= 60) return "text-warning";
+        return "text-danger";
+    }
+
+    private bool IsAnswerCorrect(Question question, QuestionAnswerViewModel? userAnswer)
+    {
+        if (userAnswer == null) return false;
+
+        // Простая логика проверки (реализуйте вашу логику из TestService)
+        return question.Type switch
+        {
+            QuestionType.SingleChoice => CheckSingleChoice(question, userAnswer),
+            QuestionType.MultipleChoice => CheckMultipleChoice(question, userAnswer),
+            QuestionType.TextAnswer => CheckTextAnswer(question, userAnswer),
+            QuestionType.TrueFalse => CheckTrueFalse(question, userAnswer),
+            _ => false
+        };
+    }
+
+    private bool CheckSingleChoice(Question question, QuestionAnswerViewModel answer)
+    {
+        var correctOption = question.AnswerOptions.FirstOrDefault(o => o.IsCorrect);
+        return correctOption != null && answer.SelectedOptionId == correctOption.Id;
+    }
+
+    private bool CheckMultipleChoice(Question question, QuestionAnswerViewModel answer)
+    {
+        var correctOptions = question.AnswerOptions.Where(o => o.IsCorrect).Select(o => o.Id).ToList();
+        return correctOptions.Count > 0 &&
+               correctOptions.All(id => answer.SelectedOptionIds.Contains(id)) &&
+               answer.SelectedOptionIds.Count == correctOptions.Count;
+    }
+
+    private bool CheckTextAnswer(Question question, QuestionAnswerViewModel answer)
+    {
+        if (string.IsNullOrWhiteSpace(answer.TextAnswer) ||
+            string.IsNullOrWhiteSpace(question.CorrectTextAnswer))
+            return false;
+
+        return answer.TextAnswer.Trim().ToLower() == question.CorrectTextAnswer.Trim().ToLower();
+    }
+
+    private bool CheckTrueFalse(Question question, QuestionAnswerViewModel answer)
+    {
+        var correctOption = question.AnswerOptions.FirstOrDefault(o => o.IsCorrect);
+        return correctOption != null && answer.SelectedOptionId == correctOption.Id;
+    }
+
+    private string GetUserAnswerText(Question question, QuestionAnswerViewModel? userAnswer)
+    {
+        if (userAnswer == null) return "Нет ответа";
+
+        return question.Type switch
+        {
+            QuestionType.SingleChoice => GetSelectedOptionText(question, userAnswer.SelectedOptionId),
+            QuestionType.MultipleChoice => GetMultipleOptionsText(question, userAnswer.SelectedOptionIds),
+            QuestionType.TextAnswer => userAnswer.TextAnswer ?? "Нет ответа",
+            QuestionType.TrueFalse => GetSelectedOptionText(question, userAnswer.SelectedOptionId),
+            _ => "Неизвестный тип ответа"
+        };
+    }
+
+    private string GetSelectedOptionText(Question question, int? optionId)
+    {
+        if (!optionId.HasValue) return "Не выбрано";
+        var option = question.AnswerOptions.FirstOrDefault(o => o.Id == optionId.Value);
+        return option?.Text ?? "Неизвестный вариант";
+    }
+
+    private string GetMultipleOptionsText(Question question, List<int> optionIds)
+    {
+        if (optionIds.Count == 0) return "Не выбрано";
+        var selected = question.AnswerOptions
+            .Where(o => optionIds.Contains(o.Id))
+            .Select(o => o.Text);
+        return string.Join(", ", selected);
+    }
+
+    private string GetCorrectAnswerText(Question question)
+    {
+        return question.Type switch
+        {
+            QuestionType.SingleChoice => question.AnswerOptions.FirstOrDefault(o => o.IsCorrect)?.Text ?? "",
+            QuestionType.MultipleChoice => string.Join(", ", question.AnswerOptions.Where(o => o.IsCorrect).Select(o => o.Text)),
+            QuestionType.TextAnswer => question.CorrectTextAnswer ?? "",
+            QuestionType.TrueFalse => question.AnswerOptions.FirstOrDefault(o => o.IsCorrect)?.Text ?? "",
+            _ => ""
+        };
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void GoToNewTest()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

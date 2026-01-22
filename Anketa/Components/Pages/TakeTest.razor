@@ -1,0 +1,389 @@
+﻿@page "/take-test/{TestId:int}"
+@rendermode InteractiveServer
+@using Anketa.Models
+@using Anketa.Services
+@inject NavigationManager Navigation
+@inject TestService TestService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Прохождение теста</PageTitle>
+
+@if (test == null)
+{
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-3">Загрузка теста...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <!-- Заголовок теста -->
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h3 class="mb-0">@test.Title</h3>
+                                @if (!string.IsNullOrEmpty(test.Description))
+                                {
+                                    <p class="mb-0 mt-1">@test.Description</p>
+                                }
+                            </div>
+                            <div>
+                                <span class="badge bg-light text-dark">
+                                    @test.Questions.Count вопросов
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Информация о пользователе -->
+                    <div class="card-body bg-light">
+                        <div class="row">
+                            @if (showUserName)
+                            {
+                                <div class="col-md-4 mb-2">
+                                    <strong>Имя:</strong> @userName
+                                </div>
+                            }
+                            @if (showGroup)
+                            {
+                                <div class="col-md-4 mb-2">
+                                    <strong>Группа:</strong> @userGroup
+                                </div>
+                            }
+                            @if (showAge)
+                            {
+                                <div class="col-md-4 mb-2">
+                                    <strong>Возраст:</strong> @userAge
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Вопросы теста -->
+                    <div class="card-body">
+                        <EditForm Model="@testTakingModel" OnValidSubmit="@SubmitTest">
+                            @for (int i = 0; i < test.Questions.Count; i++)
+                            {
+                                var question = test.Questions[i];
+                                <div class="question-card card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            Вопрос @(i + 1)
+                                            <span class="badge bg-secondary float-end">
+                                                @question.Points баллов
+                                            </span>
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Текст вопроса -->
+                                        <p class="lead mb-4">@question.Text</p>
+
+                                        <!-- Ответы в зависимости от типа вопроса -->
+                                        @if (question.Type == QuestionType.SingleChoice)
+                                        {
+                                            <div class="list-group">
+                                                @foreach (var option in question.AnswerOptions)
+                                                {
+                                                    <label class="list-group-item">
+                                                        <input class="form-check-input me-2"
+                                                               type="radio"
+                                                               name="question_@question.Id"
+                                                               value="@option.Id"
+                                                               @onchange="@(() => SelectSingleChoice(question.Id, option.Id))"
+                                                               checked="@IsOptionSelected(question.Id, option.Id)" />
+                                                        @option.Text
+                                                    </label>
+                                                }
+                                            </div>
+                                        }
+                                        else if (question.Type == QuestionType.MultipleChoice)
+                                        {
+                                            <div class="list-group">
+                                                @foreach (var option in question.AnswerOptions)
+                                                {
+                                                    <label class="list-group-item">
+                                                        <input class="form-check-input me-2"
+                                                               type="checkbox"
+                                                               @onchange="@((e) => ToggleMultipleChoice(question.Id, option.Id, (bool?)e.Value ?? false))"
+                                                               checked="@IsOptionSelected(question.Id, option.Id)" />
+                                                        @option.Text
+                                                    </label>
+                                                }
+                                            </div>
+                                        }
+                                        else if (question.Type == QuestionType.TextAnswer)
+                                        {
+                                            <div class="form-group">
+                                                <textarea class="form-control"
+                                                          rows="3"
+                                                          placeholder="Введите ваш ответ..."
+                                                          @bind="@GetAnswer(question.Id).TextAnswer"></textarea>
+                                            </div>
+                                        }
+                                        else if (question.Type == QuestionType.TrueFalse)
+                                        {
+                                            <div class="list-group">
+                                                @foreach (var option in question.AnswerOptions)
+                                                {
+                                                    <label class="list-group-item">
+                                                        <input class="form-check-input me-2"
+                                                               type="radio"
+                                                               name="question_@question.Id"
+                                                               value="@option.Id"
+                                                               @onchange="@(() => SelectSingleChoice(question.Id, option.Id))"
+                                                               checked="@IsOptionSelected(question.Id, option.Id)" />
+                                                        @option.Text
+                                                    </label>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Кнопки действий -->
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-secondary" @onclick="CancelTest">
+                                    <i class="bi bi-x-circle"></i> Отмена
+                                </button>
+                                <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2">Завершение...</span>
+                                        
+                                                                }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-2"></i>
+                                    }
+                                    Завершить тест
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int TestId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? UserName { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Group { get; set; }
+
+    [SupplyParameterFromQuery]
+    public int? Age { get; set; }
+
+    private Test? test;
+    private TestTakingViewModel testTakingModel = new();
+    private bool isSubmitting = false;
+    private bool showUserName = false;
+    private bool showGroup = false;
+    private bool showAge = false;
+    private string userName = "Аноним";
+    private string userGroup = "";
+    private int? userAge = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTest();
+    }
+
+    private async Task LoadTest()
+    {
+        try
+        {
+            test = await TestService.GetTestAsync(TestId);
+
+            if (test == null)
+            {
+                await ShowErrorMessage("Тест не найден или не доступен для прохождения");
+                Navigation.NavigateTo("/");
+                return;
+            }
+
+            // Настройка отображения информации пользователя
+            showUserName = test.RequireName;
+            showGroup = test.RequireGroup;
+            showAge = test.RequireAge;
+
+            // Устанавливаем данные пользователя
+            userName = UserName ?? "Аноним";
+            userGroup = Group ?? "";
+            userAge = Age;
+
+            // Проверяем обязательные поля
+            if (test.RequireName && string.IsNullOrWhiteSpace(userName))
+            {
+                await ShowErrorMessage("Для прохождения этого теста необходимо указать имя");
+                Navigation.NavigateTo($"/?testId={TestId}");
+                return;
+            }
+
+            if (test.RequireGroup && string.IsNullOrWhiteSpace(userGroup))
+            {
+                await ShowErrorMessage("Для прохождения этого теста необходимо указать группу");
+                Navigation.NavigateTo($"/?testId={TestId}");
+                return;
+            }
+
+            if (test.RequireAge && !userAge.HasValue)
+            {
+                await ShowErrorMessage("Для прохождения этого теста необходимо указать возраст");
+                Navigation.NavigateTo($"/?testId={TestId}");
+                return;
+            }
+
+            // Инициализируем модель для ответов
+            testTakingModel.TestId = TestId;
+            testTakingModel.UserName = userName;
+            testTakingModel.Group = userGroup;
+            testTakingModel.Age = userAge;
+
+            // Создаем пустые ответы для всех вопросов
+            foreach (var question in test.Questions)
+            {
+                testTakingModel.Answers.Add(new QuestionAnswerViewModel
+                {
+                    QuestionId = question.Id,
+                    QuestionType = question.Type
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowErrorMessage($"Ошибка загрузки теста: {ex.Message}");
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private QuestionAnswerViewModel GetAnswer(int questionId)
+    {
+        return testTakingModel.Answers.FirstOrDefault(a => a.QuestionId == questionId)
+               ?? new QuestionAnswerViewModel { QuestionId = questionId };
+    }
+
+    private bool IsOptionSelected(int questionId, int optionId)
+    {
+        var answer = GetAnswer(questionId);
+
+        if (answer.QuestionType == QuestionType.SingleChoice ||
+            answer.QuestionType == QuestionType.TrueFalse)
+        {
+            return answer.SelectedOptionId == optionId;
+        }
+        else if (answer.QuestionType == QuestionType.MultipleChoice)
+        {
+            return answer.SelectedOptionIds.Contains(optionId);
+        }
+
+        return false;
+    }
+
+    private void SelectSingleChoice(int questionId, int optionId)
+    {
+        var answer = GetAnswer(questionId);
+        answer.SelectedOptionId = optionId;
+    }
+
+    private void ToggleMultipleChoice(int questionId, int optionId, bool isChecked)
+    {
+        var answer = GetAnswer(questionId);
+
+        if (isChecked && !answer.SelectedOptionIds.Contains(optionId))
+        {
+            answer.SelectedOptionIds.Add(optionId);
+        }
+        else if (!isChecked && answer.SelectedOptionIds.Contains(optionId))
+        {
+            answer.SelectedOptionIds.Remove(optionId);
+        }
+    }
+
+    private async Task SubmitTest()
+    {
+        try
+        {
+            isSubmitting = true;
+            StateHasChanged();
+
+            // Проверяем, на все ли вопросы ответили
+            var unansweredQuestions = new List<string>();
+
+            foreach (var question in test!.Questions)
+            {
+                var answer = GetAnswer(question.Id);
+
+                if (question.Type == QuestionType.SingleChoice || question.Type == QuestionType.TrueFalse)
+                {
+                    if (!answer.SelectedOptionId.HasValue)
+                    {
+                        unansweredQuestions.Add($"Вопрос {test.Questions.IndexOf(question) + 1}");
+                    }
+                }
+                else if (question.Type == QuestionType.MultipleChoice)
+                {
+                    if (answer.SelectedOptionIds.Count == 0)
+                    {
+                        unansweredQuestions.Add($"Вопрос {test.Questions.IndexOf(question) + 1}");
+                    }
+                }
+                else if (question.Type == QuestionType.TextAnswer)
+                {
+                    if (string.IsNullOrWhiteSpace(answer.TextAnswer))
+                    {
+                        unansweredQuestions.Add($"Вопрос {test.Questions.IndexOf(question) + 1}");
+                    }
+                }
+            }
+
+            if (unansweredQuestions.Count > 0)
+            {
+                await ShowErrorMessage($"Ответьте на вопросы: {string.Join(", ", unansweredQuestions.Take(5))}");
+                isSubmitting = false;
+                return;
+            }
+
+            // Сохраняем результат
+            var result = await TestService.SaveTestResultAsync(testTakingModel);
+
+            // Переходим на страницу результата
+            Navigation.NavigateTo($"/test-result/{result.Id}");
+        }
+        catch (Exception ex)
+        {
+            await ShowErrorMessage($"Ошибка при завершении теста: {ex.Message}");
+            isSubmitting = false;
+        }
+    }
+
+    private void CancelTest()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private async Task ShowErrorMessage(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", message);
+    }
+}

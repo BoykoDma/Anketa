@@ -1,0 +1,292 @@
+﻿@page "/create-test"
+@rendermode InteractiveServer
+@using Anketa.Models
+@using Anketa.Services
+@using Anketa.Components.Additionally
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@inject TestService TestService
+@inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Создание теста</PageTitle>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Создание нового теста</h3>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@TestModel" OnValidSubmit="@HandleSubmit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <!-- Основная информация о тесте -->
+                        <div class="mb-4">
+                            <h4>Основная информация</h4>
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    <label class="form-label">Название теста *</label>
+                                    <InputText @bind-Value="TestModel.Title" class="form-control" />
+                                    <ValidationMessage For="@(() => TestModel.Title)" />
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Описание</label>
+                                <InputTextArea @bind-Value="TestModel.Description"
+                                               class="form-control"
+                                               rows="3"
+                                               placeholder="Опишите, что проверяет этот тест..." />
+                            </div>
+                        </div>
+
+                        <!-- Настройки теста -->
+                        <div class="mb-4">
+                            <h4>Настройки теста</h4>
+                            <p class="text-muted small">Выберите, какую информацию нужно указывать при прохождении теста</p>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <div class="form-check">
+                                        <InputCheckbox @bind-Value="TestModel.RequireName" class="form-check-input" />
+                                        <label class="form-check-label">Требовать имя</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="form-check">
+                                        <InputCheckbox @bind-Value="TestModel.RequireGroup" class="form-check-input" />
+                                        <label class="form-check-label">Требовать группу</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="form-check">
+                                        <InputCheckbox @bind-Value="TestModel.RequireAge" class="form-check-input" />
+                                        <label class="form-check-label">Требовать возраст</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Вопросы теста -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="mb-0">Вопросы теста</h4>
+                                <button type="button" class="btn btn-success" @onclick="AddQuestion">
+                                    <i class="bi bi-plus-circle"></i> Добавить вопрос
+                                </button>
+                            </div>
+
+                            @if (TestModel.Questions.Count == 0)
+                            {
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i> Добавьте хотя бы один вопрос
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="questions-container">
+                                    @for (int i = 0; i < TestModel.Questions.Count; i++)
+                                    {
+                                        var index = i;
+                                        <QuestionEditor @key="TestModel.Questions[i].Id"
+                                                        Question="TestModel.Questions[i]"
+                                                        QuestionIndex="index"
+                                                        OnQuestionChanged="@((q) => UpdateQuestion(index, q))"
+                                                        OnDeleteQuestion="@(() => DeleteQuestion(index))"
+                                                        OnMoveUp="@(() => MoveQuestionUp(index))"
+                                                        OnMoveDown="@(() => MoveQuestionDown(index))" />
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Кнопки действий для всего теста -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-secondary" @onclick="NavigateToMyTests">
+                                <i class="bi bi-arrow-left"></i> Назад к моим тестам
+                            </button>
+
+                            <div>
+                                <button type="button" class="btn btn-outline-danger me-2" @onclick="CancelCreation">
+                                    Отмена
+                                </button>
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    <i class="bi bi-check-circle"></i> Создать тест
+                                </button>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private TestViewModel TestModel = new();
+    private bool isSubmitting = false;
+    private int questionCounter = 1;
+
+    protected override void OnInitialized()
+    {
+        // Добавляем первый вопрос по умолчанию
+        AddQuestion();
+    }
+
+    private void AddQuestion()
+    {
+        TestModel.Questions.Add(new QuestionViewModel
+        {
+            Id = questionCounter++,
+            Text = $"Вопрос {TestModel.Questions.Count + 1}",
+            Type = QuestionType.SingleChoice,
+            Points = 1,
+            AnswerOptions = new List<AnswerOptionViewModel>
+            {
+                new() { Id = 1, Text = "Вариант ответа 1", IsCorrect = true },
+                new() { Id = 2, Text = "Вариант ответа 2", IsCorrect = false },
+                new() { Id = 3, Text = "Вариант ответа 3", IsCorrect = false }
+            }
+        });
+    }
+
+    private void UpdateQuestion(int index, QuestionViewModel question)
+    {
+        TestModel.Questions[index] = question;
+        StateHasChanged();
+    }
+
+    private void DeleteQuestion(int index)
+    {
+        if (TestModel.Questions.Count > 1)
+        {
+            TestModel.Questions.RemoveAt(index);
+            StateHasChanged();
+        }
+    }
+
+    private void MoveQuestionUp(int index)
+    {
+        if (index > 0)
+        {
+            var question = TestModel.Questions[index];
+            TestModel.Questions.RemoveAt(index);
+            TestModel.Questions.Insert(index - 1, question);
+            StateHasChanged();
+        }
+    }
+
+    private void MoveQuestionDown(int index)
+    {
+        if (index < TestModel.Questions.Count - 1)
+        {
+            var question = TestModel.Questions[index];
+            TestModel.Questions.RemoveAt(index);
+            TestModel.Questions.Insert(index + 1, question);
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+
+            // Валидация
+            if (string.IsNullOrWhiteSpace(TestModel.Title))
+            {
+                await ShowErrorMessage("Введите название теста");
+                return;
+            }
+
+            if (TestModel.Questions.Count == 0)
+            {
+                await ShowErrorMessage("Добавьте хотя бы один вопрос");
+                return;
+            }
+
+            for (int i = 0; i < TestModel.Questions.Count; i++)
+            {
+                var question = TestModel.Questions[i];
+
+                if (string.IsNullOrWhiteSpace(question.Text))
+                {
+                    await ShowErrorMessage($"Вопрос #{i + 1}: введите текст вопроса");
+                    return;
+                }
+
+                if (question.Type == QuestionType.TextAnswer &&
+                    string.IsNullOrWhiteSpace(question.CorrectTextAnswer))
+                {
+                    await ShowErrorMessage($"Вопрос '{question.Text}': укажите правильный ответ для текстового вопроса");
+                    return;
+                }
+
+                if ((question.Type == QuestionType.SingleChoice ||
+                     question.Type == QuestionType.MultipleChoice ||
+                     question.Type == QuestionType.TrueFalse) &&
+                    question.AnswerOptions.Count < 2)
+                {
+                    await ShowErrorMessage($"Вопрос '{question.Text}': добавьте минимум 2 варианта ответа");
+                    return;
+                }
+
+                if ((question.Type == QuestionType.SingleChoice ||
+                     question.Type == QuestionType.TrueFalse) &&
+                    question.AnswerOptions.Count(o => o.IsCorrect) != 1)
+                {
+                    await ShowErrorMessage($"Вопрос '{question.Text}': выберите один правильный вариант ответа");
+                    return;
+                }
+            }
+
+            // Получаем ID текущего пользователя
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.Identity?.Name;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                await ShowErrorMessage("Пользователь не авторизован");
+                return;
+            }
+
+            // Создаем тест
+            var createdTest = await TestService.CreateTestAsync(TestModel, userId);
+
+            // Переходим на страницу теста
+            Navigation.NavigateTo($"/test/{createdTest.Id}/edit");
+        }
+        catch (Exception ex)
+        {
+            await ShowErrorMessage($"Ошибка: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task ShowErrorMessage(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", message);
+    }
+
+    private void NavigateToMyTests()
+    {
+        Navigation.NavigateTo("/my-tests");
+    }
+
+    private void CancelCreation()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

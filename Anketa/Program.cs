@@ -19,6 +19,7 @@ builder.Services.AddDbContext<Context>(options =>
 
 builder.Services.AddScoped<LogAndRegServices>();
 builder.Services.AddScoped<UserServices>();
+builder.Services.AddScoped<TestService>();
 builder.Services.AddScoped<LocalStorageAuthService>();
 builder.Services.AddScoped<AuthenticationStateProvider, LocalStorageAuthStateProvider>();
 

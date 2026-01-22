@@ -1,0 +1,257 @@
+﻿@using Anketa.Models
+
+<div class="question-card card mb-4">
+    <div class="card-header bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Вопрос @(QuestionIndex + 1)</h5>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-secondary me-1" 
+                        @onclick="HandleMoveUp"
+                        disabled="@(QuestionIndex == 0)">
+                    <i class="bi bi-arrow-up"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary me-1" 
+                        @onclick="HandleMoveUp"
+                        disabled="@(QuestionIndex == maxIndex)">
+                    <i class="bi bi-arrow-down"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" 
+                        @onclick="DeleteQuestion"
+                        disabled="@(QuestionIndex == 0 && maxIndex == 0)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <!-- Текст вопроса -->
+        <div class="mb-3">
+            <label class="form-label">Текст вопроса *</label>
+            <InputText @bind-Value="Question.Text" 
+                     class="form-control"
+                     placeholder="Введите текст вопроса" />
+            <ValidationMessage For="@(() => Question.Text)" />
+        </div>
+
+        <!-- Настройки вопроса -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Тип вопроса</label>
+                <InputSelect @bind-Value="Question.Type" class="form-select" @onchange="HandleTypeChange">
+                    <option value="@QuestionType.SingleChoice">Один правильный ответ</option>
+                    <option value="@QuestionType.MultipleChoice">Несколько правильных ответов</option>
+                    <option value="@QuestionType.TextAnswer">Текстовый ответ</option>
+                    <option value="@QuestionType.TrueFalse">Верно/Неверно</option>
+                </InputSelect>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Баллы за вопрос</label>
+                <InputNumber @bind-Value="Question.Points" class="form-control" min="0.1" step="0.5" />
+            </div>
+        </div>
+
+        <!-- Варианты ответов для вопросов с выбором -->
+        @if (Question.Type == QuestionType.SingleChoice || 
+             Question.Type == QuestionType.MultipleChoice ||
+             Question.Type == QuestionType.TrueFalse)
+        {
+            <div class="answer-options">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label">Варианты ответов *</label>
+                    <button type="button" class="btn btn-sm btn-success" @onclick="AddAnswerOption">
+                        <i class="bi bi-plus"></i> Добавить вариант
+                    </button>
+                </div>
+                
+                @if (Question.AnswerOptions.Count == 0)
+                {
+                    <div class="alert alert-warning">
+                        Добавьте варианты ответов
+                    </div>
+                }
+                else
+                {
+                    @for (int i = 0; i < Question.AnswerOptions.Count; i++)
+                    {
+                        var option = Question.AnswerOptions[i];
+                        <div class="answer-option card mb-2">
+                            <div class="card-body py-2">
+                                <div class="row align-items-center">
+                                    <div class="col-1 text-center">
+                                        @if (Question.Type == QuestionType.MultipleChoice)
+                                        {
+                                            <input type="checkbox" 
+                                                   @bind="option.IsCorrect"
+                                                   class="form-check-input"
+                                                   id="@($"option-{QuestionIndex}-{i}")" />
+                                        }
+                                        else
+                                        {
+                                            <input type="radio" 
+                                                   name="@($"question-{QuestionIndex}")"
+                                                   @bind="option.IsCorrect"
+                                                   class="form-check-input"
+                                                   id="@($"option-{QuestionIndex}-{i}")" />
+                                        }
+                                    </div>
+                                    <div class="col-9">
+                                        <InputText @bind-Value="option.Text"
+                                                 class="form-control form-control-sm"
+                                                 placeholder="Текст варианта ответа" />
+                                    </div>
+                                    <div class="col-2 text-end">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger"
+                                                @onclick="@(() => DeleteAnswerOption(i))"
+                                                disabled="@(Question.AnswerOptions.Count <= 2)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+
+                <!-- Подсказка для TrueFalse -->
+                @if (Question.Type == QuestionType.TrueFalse && Question.AnswerOptions.Count != 2)
+                {
+                    <div class="alert alert-info mt-2">
+                        Для вопроса типа "Верно/Неверно" нужны ровно 2 варианта: один правильный, один неправильный
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Поле для правильного текстового ответа -->
+        @if (Question.Type == QuestionType.TextAnswer)
+        {
+            <div class="mb-3">
+                <label class="form-label">Правильный ответ *</label>
+                <InputText @bind-Value="Question.CorrectTextAnswer"
+                         class="form-control"
+                         placeholder="Введите правильный ответ для проверки" />
+                <div class="form-text">
+                    При проверке регистр и лишние пробелы не учитываются
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public QuestionViewModel Question { get; set; } = default!;
+
+    [Parameter]
+    public int QuestionIndex { get; set; }
+
+    [Parameter]
+    public EventCallback<QuestionViewModel> OnQuestionChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnDeleteQuestion { get; set; }
+
+    [Parameter]
+    public EventCallback OnMoveUp { get; set; }
+
+    [Parameter]
+    public EventCallback OnMoveDown { get; set; }
+
+    private int optionCounter = 1;
+    private int maxIndex = 0;
+
+    protected override void OnInitialized()
+    {
+        if (Question.AnswerOptions.Count == 0 && 
+            Question.Type != QuestionType.TextAnswer)
+        {
+            AddAnswerOption();
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        maxIndex = GetMaxIndex?.Invoke() ?? 0;
+    }
+
+    private void AddAnswerOption()
+    {
+        Question.AnswerOptions.Add(new AnswerOptionViewModel
+        {
+            Id = optionCounter++,
+            Text = $"Вариант {Question.AnswerOptions.Count + 1}",
+            IsCorrect = Question.AnswerOptions.Count == 0 // Первый вариант правильный по умолчанию
+        });
+        NotifyChange();
+    }
+
+    private async Task HandleMoveUp()
+{
+    if (OnMoveUp.HasDelegate)
+    {
+        await OnMoveUp.InvokeAsync();
+    }
+}
+
+private async Task HandleMoveDown()
+{
+    if (OnMoveDown.HasDelegate)
+    {
+        await OnMoveDown.InvokeAsync();
+    }
+}
+
+    private void DeleteAnswerOption(int index)
+    {
+        if (Question.AnswerOptions.Count > 2)
+        {
+            Question.AnswerOptions.RemoveAt(index);
+            NotifyChange();
+        }
+    }
+
+    private void HandleTypeChange(ChangeEventArgs e)
+    {
+        var newType = (QuestionType)Enum.Parse(typeof(QuestionType), e.Value?.ToString() ?? "SingleChoice");
+        
+        // Очищаем варианты ответов при смене типа
+        if (newType == QuestionType.TextAnswer)
+        {
+            Question.AnswerOptions.Clear();
+        }
+        else if (Question.AnswerOptions.Count == 0)
+        {
+            // Добавляем стандартные варианты для нового типа
+            if (newType == QuestionType.TrueFalse)
+            {
+                Question.AnswerOptions = new List<AnswerOptionViewModel>
+                {
+                    new() { Id = 1, Text = "Верно", IsCorrect = true },
+                    new() { Id = 2, Text = "Неверно", IsCorrect = false }
+                };
+            }
+            else
+            {
+                AddAnswerOption();
+                AddAnswerOption();
+            }
+        }
+
+        NotifyChange();
+    }
+
+    private void DeleteQuestion()
+    {
+        OnDeleteQuestion.InvokeAsync();
+    }
+
+    private void NotifyChange()
+    {
+        OnQuestionChanged.InvokeAsync(Question);
+    }
+
+    [CascadingParameter]
+    private Func<int>? GetMaxIndex { get; set; }
+}
