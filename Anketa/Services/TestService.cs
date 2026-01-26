@@ -17,8 +17,6 @@ namespace Anketa.Services
             _logger = logger;
         }
 
-        // ============ РАБОТА С РЕЗУЛЬТАТАМИ ТЕСТОВ ============
-
         public async Task<TestResultModel?> GetTestResultAsync(int resultId)
         {
             return await _context.TestResults
@@ -37,7 +35,6 @@ namespace Anketa.Services
                 if (test == null)
                     return null;
 
-                // Загружаем вопросы отдельно
                 test.Questions = await _context.Questions
                     .Where(q => q.TestId == testId)
                     .OrderBy(q => q.Order)
@@ -56,7 +53,6 @@ namespace Anketa.Services
         {
             try
             {
-                // Получаем тест
                 var test = await _context.Tests
                     .Include(t => t.Questions)
                     .FirstOrDefaultAsync(t => t.Id == model.TestId);
@@ -64,14 +60,11 @@ namespace Anketa.Services
                 if (test == null)
                     throw new Exception($"Тест с ID {model.TestId} не найден");
 
-                // Проверяем обязательные поля
                 ValidateRequiredFields(test, model);
 
-                // Автоматически рассчитываем баллы
                 int totalQuestions = test.Questions.Count;
                 decimal pointsPerQuestion = totalQuestions > 0 ? 5m / totalQuestions : 0;
 
-                // Рассчитываем результат
                 decimal totalScore = 0;
 
                 foreach (var question in test.Questions)
@@ -83,10 +76,8 @@ namespace Anketa.Services
                     }
                 }
 
-                // Округляем до 2 знаков после запятой
                 totalScore = Math.Round(totalScore, 2);
 
-                // Создаем результат
                 var testResult = new TestResultModel
                 {
                     TestId = model.TestId,
@@ -95,11 +86,10 @@ namespace Anketa.Services
                     Age = model.Age,
                     CompletedAt = DateTime.UtcNow,
                     Score = totalScore,
-                    MaxScore = 5m, // Всегда 5
+                    MaxScore = 5m,
                     AnswersJson = JsonSerializer.Serialize(model.Answers)
                 };
 
-                // Сохраняем
                 _context.TestResults.Add(testResult);
                 await _context.SaveChangesAsync();
 
@@ -172,7 +162,6 @@ namespace Anketa.Services
         {
             decimal totalScore = 0;
 
-            // Используем 5 как максимальный балл
             decimal maxScore = 5m;
 
             foreach (var question in questions)
@@ -180,7 +169,6 @@ namespace Anketa.Services
                 var answer = answers.FirstOrDefault(a => a.QuestionId == question.Id);
                 if (answer != null && IsAnswerCorrect(question, answer))
                 {
-                    // Каждый правильный ответ добавляет свою долю от 5 баллов
                     totalScore += maxScore / questions.Count;
                 }
             }
@@ -297,8 +285,6 @@ namespace Anketa.Services
             };
         }
 
-        // ============ РАБОТА С ТЕСТАМИ ============
-
         public async Task<Test> CreateTestAsync(TestViewModel model, string userId)
         {
             try
@@ -315,7 +301,6 @@ namespace Anketa.Services
                     RequireAge = model.RequireAge
                 };
 
-                // Добавляем вопросы
                 int questionOrder = 1;
                 foreach (var questionVm in model.Questions)
                 {
@@ -324,11 +309,9 @@ namespace Anketa.Services
                         Order = questionOrder++,
                         Text = questionVm.Text,
                         Type = questionVm.Type,
-                        // Баллы не сохраняем - рассчитываются автоматически
                         CorrectTextAnswer = questionVm.CorrectTextAnswer
                     };
 
-                    // Добавляем варианты ответов
                     int optionOrder = 1;
                     foreach (var optionVm in questionVm.AnswerOptions)
                     {
@@ -367,17 +350,14 @@ namespace Anketa.Services
                 if (test == null)
                     throw new Exception($"Тест с ID {testId} не найден");
 
-                // Обновляем основные свойства
                 test.Title = model.Title;
                 test.Description = model.Description;
                 test.RequireName = model.RequireName;
                 test.RequireGroup = model.RequireGroup;
                 test.RequireAge = model.RequireAge;
 
-                // Удаляем старые вопросы
                 _context.Questions.RemoveRange(test.Questions);
 
-                // Добавляем новые вопросы
                 int questionOrder = 1;
                 foreach (var questionVm in model.Questions)
                 {
@@ -390,7 +370,6 @@ namespace Anketa.Services
                         CorrectTextAnswer = questionVm.CorrectTextAnswer
                     };
 
-                    // Добавляем варианты ответов
                     foreach (var optionVm in questionVm.AnswerOptions)
                     {
                         question.AnswerOptions.Add(new AnswerOption
@@ -455,7 +434,6 @@ namespace Anketa.Services
         }
     }
 
-    // Вспомогательные классы
     public class ScoreCalculationResult
     {
         public decimal ActualScore { get; set; }

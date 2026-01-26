@@ -8,7 +8,6 @@
         public bool RequireName { get; set; }
         public bool RequireGroup { get; set; }
         public bool RequireAge { get; set; }
-
         public List<QuestionViewModel> Questions { get; set; } = new();
     }
 
@@ -17,17 +16,9 @@
         public int? Id { get; set; }
         public string Text { get; set; } = string.Empty;
         public QuestionType Type { get; set; } = QuestionType.SingleChoice;
-        // Убираем ручное поле Points
-        // public decimal Points { get; set; } = 1; <- УДАЛИТЬ
-
-        // Для вопросов с выбором
         public List<AnswerOptionViewModel> AnswerOptions { get; set; } = new();
-
-        // Для текстовых вопросов
         public string? CorrectTextAnswer { get; set; }
-
-        // Добавляем автоматическое свойство только для чтения
-        public decimal Points => 1m; // Будет пересчитываться динамически
+        public decimal Points => 1m;
     }
 
     public class AnswerOptionViewModel
@@ -37,7 +28,6 @@
         public bool IsCorrect { get; set; }
     }
 
-    // Для прохождения теста
     public class TestTakingViewModel
     {
         public int TestId { get; set; }
@@ -47,19 +37,12 @@
         public List<QuestionAnswerViewModel> Answers { get; set; } = new();
     }
 
-    // Ответ на один вопрос
     public class QuestionAnswerViewModel
     {
         public int QuestionId { get; set; }
         public QuestionType QuestionType { get; set; }
-
-        // Для SingleChoice и TrueFalse
         public int? SelectedOptionId { get; set; }
-
-        // Для MultipleChoice
         public List<int> SelectedOptionIds { get; set; } = new();
-
-        // Для TextAnswer
         public string? TextAnswer { get; set; }
     }
 }

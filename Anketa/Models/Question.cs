@@ -1,6 +1,5 @@
 ﻿namespace Anketa.Models
 {
-    // Модель вопроса
     public class Question
     {
         public int Id { get; set; }
@@ -8,17 +7,8 @@
         public int Order { get; set; } = 0;
         public string Text { get; set; } = string.Empty;
         public QuestionType Type { get; set; } = QuestionType.SingleChoice;
-
-        // Убираем хранение баллов в БД
-        // public decimal Points { get; set; } = 1; <- УДАЛИТЬ
-
-        // Варианты ответов (только для типов с выбором)
         public List<AnswerOption> AnswerOptions { get; set; } = new();
-
-        // Для текстовых вопросов - правильный ответ (опционально)
         public string? CorrectTextAnswer { get; set; }
-
-        // Навигационное свойство
         public Test? Test { get; set; }
     }
 
@@ -31,9 +21,9 @@
 
     public enum QuestionType
     {
-        SingleChoice,    // Один правильный ✓
-        MultipleChoice,  // Несколько правильных
-        TextAnswer,      // Текстовый ответ
-        TrueFalse        // Верно/Неверно
+        SingleChoice,
+        MultipleChoice,
+        TextAnswer,
+        TrueFalse
     }
 }

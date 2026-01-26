@@ -19,7 +19,7 @@
                 <button type="button" class="btn btn-sm btn-danger"
                         @onclick="async () => await DeleteQuestion()"
                         disabled="@(QuestionIndex == 0 && maxIndex == 0)">
-                    <i class="bi bi-trash"></i>
+                    Удалить вопрос
                 </button>
             </div>
         </div>
@@ -262,13 +262,11 @@
     {
         if (Question.AnswerOptions == null || index >= Question.AnswerOptions.Count) return;
 
-        // Сбрасываем все остальные варианты
         foreach (var option in Question.AnswerOptions)
         {
             option.IsCorrect = false;
         }
 
-        // Устанавливаем выбранный вариант
         Question.AnswerOptions[index].IsCorrect = true;
         NotifyChange();
     }
@@ -280,7 +278,6 @@
         var newType = (QuestionType)Enum.Parse(typeof(QuestionType), e.Value.ToString() ?? "SingleChoice");
         Question.Type = newType;
 
-        // Очищаем варианты ответов при смене типа
         if (newType == QuestionType.TextAnswer)
         {
             Question.AnswerOptions?.Clear();

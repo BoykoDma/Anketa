@@ -71,25 +71,6 @@
                             </div>
                         </div>
 
-                        @* <div class="alert alert-info mb-4">
-                            <h5><i class="bi bi-info-circle"></i> Система оценок</h5>
-                            <p class="mb-1">
-                                • Максимальная оценка за тест: <strong>5 баллов</strong><br>
-                                • Каждый вопрос оценивается одинаково<br>
-                                • Баллы за один вопрос: <strong>5 / количество вопросов</strong><br>
-                                • При 10 вопросах: 5 / 10 = 0.5 балла за вопрос<br>
-                                • При 5 вопросах: 5 / 5 = 1 балл за вопрос
-                            </p>
-                            @if (TestModel.Questions.Count > 0)
-                            {
-                                <p class="mb-0 mt-2">
-                                    <strong>Текущая статистика:</strong>
-                                    @TestModel.Questions.Count вопросов =
-                                    @Math.Round(5m / TestModel.Questions.Count, 2) балла за вопрос
-                                </p>
-                            }
-                        </div> *@
-
                         <!-- Вопросы теста -->
                         <div class="mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -154,13 +135,11 @@
     private bool isSubmitting = false;
     private int questionCounter = 1;
 
-    // Вычисляем баллы за вопрос динамически
     private decimal PointsPerQuestion =>
         TestModel.Questions.Count > 0 ? 5m / TestModel.Questions.Count : 0;
 
     protected override void OnInitialized()
     {
-        // Добавляем первый вопрос по умолчанию
         AddQuestion();
     }
 
@@ -171,7 +150,6 @@
             Id = questionCounter++,
             Text = $"Вопрос {TestModel.Questions.Count + 1}",
             Type = QuestionType.SingleChoice,
-            // Points не устанавливаем - будет вычисляться автоматически
             AnswerOptions = new List<AnswerOptionViewModel>
             {
                 new() { Id = 1, Text = "Вариант ответа 1", IsCorrect = true },
@@ -179,7 +157,7 @@
                 new() { Id = 3, Text = "Вариант ответа 3", IsCorrect = false }
             }
         });
-        StateHasChanged(); // Обновляем отображение баллов
+        StateHasChanged();
     }
 
     private void UpdateQuestion(int index, QuestionViewModel question)
@@ -193,7 +171,7 @@
         if (TestModel.Questions.Count > 1)
         {
             TestModel.Questions.RemoveAt(index);
-            StateHasChanged(); // Обновляем отображение баллов
+            StateHasChanged();
         }
     }
 
@@ -225,7 +203,6 @@
         {
             isSubmitting = true;
 
-            // Валидация
             if (string.IsNullOrWhiteSpace(TestModel.Title))
             {
                 await ShowErrorMessage("Введите название теста");
@@ -273,7 +250,6 @@
                 }
             }
 
-            // Получаем ID текущего пользователя
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var userId = authState.User.Identity?.Name;
 
@@ -283,10 +259,8 @@
                 return;
             }
 
-            // Создаем тест
             var createdTest = await TestService.CreateTestAsync(TestModel, userId);
 
-            // Переходим на страницу теста
             Navigation.NavigateTo($"/test/{createdTest.Id}/edit");
         }
         catch (Exception ex)
@@ -314,3 +288,418 @@
         Navigation.NavigateTo("/");
     }
 }
+
+<style>
+    /* Основной контейнер */
+    .container.mt-4 {
+        padding: 30px 20px;
+        min-height: calc(100vh - 140px);
+    }
+
+    /* Карточки в стиле сайта */
+    .card {
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+        margin-bottom: 24px;
+        color: #e2e8f0;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+    }
+
+        .card-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .card-header h3:before {
+                content: '';
+                width: 4px;
+                height: 24px;
+                background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 100%);
+                border-radius: 2px;
+            }
+
+    .card-body {
+        padding: 2rem;
+    }
+
+    /* Секции */
+    .section {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .section-header {
+        margin-bottom: 1.5rem;
+    }
+
+        .section-header h4 {
+            color: #ffffff;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+    .section-subtitle {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .section-line {
+        height: 2px;
+        background: linear-gradient(90deg, rgba(96, 165, 250, 0.3) 0%, transparent 100%);
+        border-radius: 1px;
+        margin-top: 0.5rem;
+    }
+
+    /* Формы */
+    .form-label {
+        color: #cbd5e1;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+
+    .styled-input,
+    .styled-textarea {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
+        padding: 0.875rem 1rem 0.875rem 3rem !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+    }
+
+        .styled-input:focus,
+        .styled-textarea:focus {
+            background: rgba(255, 255, 255, 0.08) !important;
+            border-color: rgba(96, 165, 250, 0.6) !important;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+            outline: none !important;
+        }
+
+    .input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #60a5fa;
+        font-size: 1.2rem;
+    }
+
+    /* Чекбоксы */
+    .checkbox-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+        .checkbox-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(96, 165, 250, 0.3);
+            transform: translateY(-2px);
+        }
+
+    .checkbox-content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #cbd5e1;
+        font-weight: 500;
+    }
+
+        .checkbox-content i {
+            color: #60a5fa;
+            font-size: 1.2rem;
+        }
+
+    .checkbox-input {
+        display: none;
+    }
+
+    /* Кнопки */
+    .btn {
+        padding: 0.875rem 1.5rem;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+
+        .btn-submit:hover:not(:disabled) {
+            background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #475569 0%, #334155 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(71, 85, 105, 0.3);
+    }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(71, 85, 105, 0.5);
+        }
+
+    .btn-preview {
+        background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);
+    }
+
+        .btn-preview:hover {
+            background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(96, 165, 250, 0.5);
+        }
+
+    .btn-add-question {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+        padding: 0.875rem 1.5rem;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .btn-add-question:hover {
+            background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
+        }
+
+    .btn-back {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        border-radius: 8px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+        .btn-back:hover {
+            background: rgba(96, 165, 250, 0.3);
+            transform: translateX(-2px);
+        }
+
+    /* Информация о баллах */
+    .points-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #fbbf24;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+
+        .points-info i {
+            font-size: 1rem;
+        }
+
+    /* Состояние пустое */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #94a3b8;
+    }
+
+        .empty-state i {
+            font-size: 3rem;
+            color: #475569;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h5 {
+            color: #cbd5e1;
+            margin-bottom: 0.5rem;
+        }
+
+    /* Валидация */
+    .validation-summary {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        color: #fecaca;
+    }
+
+    .validation-message {
+        color: #f87171;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    /* Адаптивность */
+    @@media (max-width: 767.98px) {
+        .container.mt-4 {
+            padding: 15px 10px;
+        }
+
+        .card {
+            margin-bottom: 16px;
+        }
+
+        .card-header,
+        .card-body {
+            padding: 1rem;
+        }
+
+        .section {
+            padding: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .d-flex {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .justify-content-between {
+            align-items: stretch;
+        }
+
+        .col-md-4 {
+            margin-bottom: 10px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .card-header h3 {
+            font-size: 1.3rem;
+        }
+
+        .section-header h4 {
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            font-size: 0.85rem;
+        }
+
+        .btn-add-question span {
+            display: none;
+        }
+
+        .btn-add-question i {
+            margin: 0;
+        }
+    }
+
+    /* Анимации */
+    .card,
+    .btn,
+    .section,
+    .checkbox-card {
+        animation: fadeInUp 0.5s ease;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Спиннер */
+    .spinner-border {
+        vertical-align: middle;
+    }
+
+    /* Gap utilities */
+    .gap-3 {
+        gap: 1rem;
+    }
+
+    .me-3 {
+        margin-right: 1rem;
+    }
+
+    .mb-4 {
+        margin-bottom: 1.5rem !important;
+    }
+
+    .mb-5 {
+        margin-bottom: 3rem !important;
+    }
+
+    .mt-4 {
+        margin-top: 1.5rem !important;
+    }
+
+    .pt-4 {
+        padding-top: 1.5rem !important;
+    }
+
+    .border-top {
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+</style>

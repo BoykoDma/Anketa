@@ -16,7 +16,6 @@ namespace Anketa.Models.ConnectionDB
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Тест
             modelBuilder.Entity<Test>()
                 .HasMany(t => t.Questions)
                 .WithOne()
@@ -29,7 +28,6 @@ namespace Anketa.Models.ConnectionDB
                 .HasForeignKey(r => r.TestId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Вопрос
             modelBuilder.Entity<Question>()
                 .Property(q => q.AnswerOptions)
                 .HasConversion(
@@ -37,7 +35,6 @@ namespace Anketa.Models.ConnectionDB
                     v => JsonSerializer.Deserialize<List<AnswerOption>>(v, (JsonSerializerOptions)null) ?? new()
                 );
 
-            // Результат
             modelBuilder.Entity<TestResultModel>()
                 .Property(r => r.AnswersJson)
                 .HasColumnType("nvarchar(max)");

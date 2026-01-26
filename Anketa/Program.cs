@@ -10,6 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.WebHost.UseUrls("http://*:5181", "https://*:7058");
+
 
 builder.Services.AddCascadingAuthenticationState();
 

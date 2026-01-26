@@ -7,7 +7,7 @@
 @inject TestService TestService
 @inject IJSRuntime JSRuntime
 @inject AuthenticationStateProvider AuthStateProvider
-<!-- Для неавторизованных пользователей -->
+
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-6">
@@ -79,11 +79,9 @@
 </div>
 
 @code {
-    // Для авторизованных пользователей
     private List<Test> userTests = new();
     private bool isInitialized = false;
 
-    // Для неавторизованных пользователей
     private GuestTestModel guestModel = new();
     private bool isLoadingTest = false;
     private string errorMessage = string.Empty;
@@ -119,7 +117,6 @@
         }
     }
 
-    // Методы для авторизованных пользователей
     private void NavigateToCreateTest()
     {
         Navigation.NavigateTo("/create-test");
@@ -132,7 +129,6 @@
 
     private void NavigateToPassTest()
     {
-        // Переключаемся в режим прохождения теста
         Navigation.NavigateTo("/pass-test");
     }
 
@@ -148,7 +144,6 @@
         await JSRuntime.InvokeVoidAsync("alert", "Ссылка скопирована в буфер обмена!");
     }
 
-    // Методы для неавторизованных пользователей
     private async Task HandleGuestSubmit()
     {
         if (!guestModel.TestId.HasValue)
@@ -162,7 +157,6 @@
             isLoadingTest = true;
             errorMessage = string.Empty;
 
-            // Получаем тест
             var test = await TestService.GetTestAsync(guestModel.TestId.Value);
 
             if (test == null)
@@ -177,7 +171,6 @@
                 return;
             }
 
-            // Проверяем обязательные поля
             if (test.RequireName && string.IsNullOrWhiteSpace(guestModel.UserName))
             {
                 errorMessage = "Для этого теста обязательно указать имя";
@@ -196,7 +189,6 @@
                 return;
             }
 
-            // Создаем модель для прохождения теста
             var takingModel = new TestTakingViewModel
             {
                 TestId = test.Id,
@@ -206,7 +198,6 @@
                 Answers = new List<QuestionAnswerViewModel>()
             };
 
-            // Переходим на страницу прохождения теста
             Navigation.NavigateTo($"/take-test/{test.Id}?userName={Uri.EscapeDataString(guestModel.UserName ?? "")}&group={Uri.EscapeDataString(guestModel.Group ?? "")}&age={guestModel.Age}");
         }
         catch (Exception ex)
@@ -219,7 +210,6 @@
         }
     }
 
-    // Модель для неавторизованных пользователей
     public class GuestTestModel
     {
         public int? TestId { get; set; }
