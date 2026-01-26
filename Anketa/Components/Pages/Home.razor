@@ -25,10 +25,12 @@
                             <button class="btn btn-success w-100 mb-3" @onclick="NavigateToCreateTest">
                                 <i class="bi bi-plus-circle"></i> Создать новый тест
                             </button>
-                            <button class="btn btn-primary w-100 mb-3" @onclick="NavigateToMyTests">
+
+                            <button class="btn btn-primary w-100 mb-3" @onclick="MyTests">
                                 <i class="bi bi-list-check"></i> Мои тесты
                             </button>
-                            <button class="btn btn-info w-100" @onclick="NavigateToPassTest">
+
+                            <button class="btn btn-info w-100" @onclick="TakeTest">
                                 <i class="bi bi-pencil-square"></i> Пройти тест
                             </button>
                         </div>
@@ -37,122 +39,66 @@
 
                 <div class="col-md-8">
                     <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Мои последние тесты</h5>
-                        </div>
-                        <div class="card-body">
-                            @if (userTests == null)
-                            {
-                                <p>Загрузка...</p>
-                            }
-                            else if (userTests.Count == 0)
-                            {
-                                <p class="text-muted">У вас пока нет созданных тестов</p>
-                            }
-                            else
-                            {
-                                <div class="list-group">
-                                    @foreach (var test in userTests.Take(5))
-                                    {
-                                        <div class="list-group-item">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <h6 class="mb-1">@test.Title</h6>
-                                                    <small class="text-muted">@test.Questions.Count вопросов</small>
-                                                </div>
-                                                <div>
-                                                    <button class="btn btn-sm btn-outline-primary me-1"
-                                                            @onclick="@(() => NavigateToTest(test.Id))">
-                                                        Просмотреть
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-success"
-                                                            @onclick="@(() => ShareTest(test.Id))">
-                                                        Поделиться
-                                                    </button>
+                        @if (isTakeTest)
+                        {
+                            <DataTest />
+                        }
+
+                        else if (isMyTests)
+                        {
+                            <div class="card-header">
+                                <h5 class="mb-0">Мои последние тесты</h5>
+                            </div>
+                            <div class="card-body">
+
+
+                                @if (userTests == null)
+                                {
+                                    <p>Загрузка...</p>
+                                }
+                                else if (userTests.Count == 0)
+                                {
+                                    <p class="text-muted">У вас пока нет созданных тестов</p>
+                                }
+                                else
+                                {
+                                    <div class="list-group">
+                                        @foreach (var test in userTests.Take(5))
+                                        {
+                                            <div class="list-group-item">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-1">@test.Title</h6>
+                                                        <small class="text-muted">@test.Questions.Count вопросов</small>
+                                                    </div>
+                                                    <div>
+                                                        <button class="btn btn-sm btn-outline-primary me-1"
+                                                                @onclick="@(() => NavigateToTest(test.Id))">
+                                                            Просмотреть
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-success"
+                                                                @onclick="@(() => ShareTest(test.Id))">
+                                                            Поделиться
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
+                                        }
+                                    </div>
+                                }
+
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
         </div>
+
+
     </Authorized>
 
     <NotAuthorized Context="authContext">
-        <!-- Для неавторизованных пользователей -->
-        <div class="container mt-5">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header bg-info text-white">
-                            <h4 class="mb-0">Пройти тест</h4>
-                        </div>
-                        <div class="card-body">
-                            <EditForm Model="@guestModel" OnValidSubmit="@HandleGuestSubmit">
-                                <div class="mb-3">
-                                    <label class="form-label">ID теста *</label>
-                                    <InputNumber @bind-Value="guestModel.TestId"
-                                                 class="form-control"
-                                                 placeholder="Введите ID теста" />
-                                    <small class="text-muted">ID теста должен быть предоставлен вам</small>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Ваше имя</label>
-                                    <InputText @bind-Value="guestModel.UserName"
-                                               class="form-control"
-                                               placeholder="Введите ваше имя" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Группа</label>
-                                    <InputText @bind-Value="guestModel.Group"
-                                               class="form-control"
-                                               placeholder="Введите группу (если требуется)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Возраст</label>
-                                    <InputNumber @bind-Value="guestModel.Age"
-                                                 class="form-control"
-                                                 placeholder="Введите возраст" />
-                                </div>
-
-                                <button type="submit" class="btn btn-primary w-100" disabled="@isLoadingTest">
-                                    @if (isLoadingTest)
-                                    {
-                                        <span class="me-1">Загрузка...</span>
-                                        
-                                                                        }
-                                    else
-                                    {
-                                        <i class="bi bi-play-circle">Начать тест</i>
-                                        
-                                                                        }
-                                </button>
-                            </EditForm>
-
-                            @if (!string.IsNullOrEmpty(errorMessage))
-                            {
-                                <div class="alert alert-danger mt-3">
-                                    @errorMessage
-                                </div>
-                            }
-
-                            <div class="text-center mt-3">
-                                <p class="text-muted">
-                                    <a href="/login">Войдите</a> чтобы создавать свои тесты
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <DataTest />
     </NotAuthorized>
 </AuthorizeView>
 
@@ -160,6 +106,9 @@
     // Для авторизованных пользователей
     private List<Test> userTests = new();
     private bool isInitialized = false;
+
+    private bool isTakeTest = false;
+    private bool isMyTests = true;
 
     // Для неавторизованных пользователей
     private GuestTestModel guestModel = new();
@@ -177,6 +126,18 @@
         }
 
         isInitialized = true;
+    }
+
+    private void TakeTest()
+    {
+        isTakeTest = true;
+        isMyTests = false;
+    }
+    private void MyTests()
+    {
+        isMyTests = true;
+        isTakeTest = false;
+
     }
 
     private async Task LoadUserTests()
